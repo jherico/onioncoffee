@@ -174,7 +174,7 @@ public class RefreshableDirectory extends Directory {
                 sc = SocketChannel.open();
                 sc.configureBlocking(false);
                 this.desiredMask = SelectionKey.OP_CONNECT;
-//                sc.register(selector, SelectionKey.OP_CONNECT, this);
+                sc.register(selector, SelectionKey.OP_CONNECT, this);
                 sc.socket().setSoTimeout(5 * 1000);
                 sc.connect(server.getDirAddress());
                 currentRequest = request;
@@ -299,13 +299,12 @@ public class RefreshableDirectory extends Directory {
             return retVal;
         }
 
-        @SuppressWarnings("unchecked")
         private void openConnections() throws IOException {
             for (DirectoryRequest req : pendingRequests) {
                 if (req.lastConnectionAge() > 1000 * 2 && dirConns.size() < MAX_CONCURRENT_REQUESTS && req.tries < MAX_REQUEST_TRIES) {
                     Server targetServer = findConnectableServer();
                     if (targetServer != null) {
-//                        getLog().debug("Adding new dir connection to server " + targetServer.getHostname() + ":" + targetServer.getDirPort());
+                        getLog().debug("Adding new dir connection to server " + targetServer.getHostname() + ":" + targetServer.getDirPort());
                         dirConns.add(new DirectoryConnection(targetServer, req));
                     }
                 }

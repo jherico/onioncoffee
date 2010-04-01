@@ -4,63 +4,21 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Random;
 import java.util.ResourceBundle;
-import java.util.Set;
 
 import net.sf.onioncoffee.Circuit;
-import net.sf.onioncoffee.Config;
-import net.sf.onioncoffee.Directory;
 import net.sf.onioncoffee.Proxy;
 import net.sf.onioncoffee.Server;
 import net.sf.onioncoffee.TCPStream;
 import net.sf.onioncoffee.TCPStreamProperties;
-import net.sf.onioncoffee.swt.TableSizingControlAdapter;
-import net.sf.onioncoffee.swt.TableUtil;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.impl.DefaultConnectionReuseStrategy;
-import org.apache.http.impl.nio.DefaultClientIOEventDispatch;
-import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
-import org.apache.http.message.BasicHttpRequest;
-import org.apache.http.nio.protocol.BufferingHttpClientHandler;
-import org.apache.http.nio.protocol.HttpRequestExecutionHandler;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
-import org.apache.http.nio.reactor.IOEventDispatch;
 import org.apache.http.nio.reactor.IOReactorException;
-import org.apache.http.nio.reactor.IOSession;
-import org.apache.http.nio.reactor.SessionRequest;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.CoreConnectionPNames;
-import org.apache.http.params.CoreProtocolPNames;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.BasicHttpProcessor;
-import org.apache.http.protocol.ExecutionContext;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.RequestConnControl;
-import org.apache.http.protocol.RequestContent;
-import org.apache.http.protocol.RequestExpectContinue;
-import org.apache.http.protocol.RequestTargetHost;
-import org.apache.http.protocol.RequestUserAgent;
-import org.apache.http.util.EntityUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
@@ -78,11 +36,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
-import org.saintandreas.ProgressCallback;
-import org.saintandreas.SubselectProgressCallbackWrapper;
-import org.saintandreas.SwtUtil;
-import org.saintandreas.util.Cache;
-import org.saintandreas.util.SimpleFileCache;
+import org.saintandreas.ui.swt.SwtUtil;
+import org.saintandreas.ui.swt.TableSizingControlAdapter;
+import org.saintandreas.ui.swt.TableUtil;
 import org.saintandreas.util.StringUtil;
 import org.saintandreas.util.ThreadUtil;
 
@@ -94,50 +50,7 @@ public class SwtProxyApp extends Proxy {
     private static Integer[] CIRCUIT_COLUMN_WIDTHS = { 75, 80 };
 
     private final Display display = new Display();
-    private Queue<String> refreshQueue = new LinkedList<String>();
     private ConnectingIOReactor ioReactor;
-
-//    class MyHttpRequestExecutionHandler implements HttpRequestExecutionHandler {
-//        private static final String SERVER = "server";
-//        private static final String UPDATE_SERVER = "update-server";
-//
-//        @Override
-//        public void initalizeContext(HttpContext context, Object attachment) {
-//            Server[] servers = (Server[]) attachment;
-//            context.setAttribute(SERVER, servers[0]);
-//            context.setAttribute(UPDATE_SERVER, servers[1]);
-//            context.setAttribute(ExecutionContext.HTTP_TARGET_HOST, new HttpHost(servers[1].getHostname()));
-//        }
-//
-//        @Override
-//        public void finalizeContext(HttpContext context) {
-//        }
-//
-//        @Override
-//        public void handleResponse(HttpResponse response, HttpContext context) throws IOException {
-//            Server server = (Server) context.getAttribute(SERVER);
-//            HttpEntity entity = response.getEntity();
-//            try {
-//                if (200 == response.getStatusLine().getStatusCode()) {
-//                    directory.parseServer(server, EntityUtils.toString(entity));
-//                }
-//            } catch (IOException ex) {
-//                System.err.println("I/O error: " + ex.getMessage());
-//            }
-//        }
-//
-//        @Override
-//        public HttpRequest submitRequest(HttpContext context) {
-//            Server server = (Server) context.getAttribute(SERVER);
-//            Server loadFrom = (Server) context.getAttribute(UPDATE_SERVER);
-//            String nodeDigest = server.getDigest();
-//            if (getLog().isDebugEnabled()) {
-//                getLog().debug("Loading node descriptions " + nodeDigest + " from " + loadFrom.getName() + " ( " + loadFrom.getHostname() + ":" + loadFrom.getDirPort() + ")");
-//            }
-//            return new BasicHttpRequest("GET", loadFrom.getDirUrl() + nodeDigest);
-//        }
-//
-//    }
 
     private Shell mainwindow = null;
     private Label serverCount;
@@ -162,17 +75,6 @@ public class SwtProxyApp extends Proxy {
         }
     }
 
-    public Server[] findUpdateServers() {
-        List<Server> updateServers = new ArrayList<Server>(directory.getServers().values());
-        for (Iterator<Server> itr = updateServers.iterator(); itr.hasNext();) {
-            if (itr.next().getDirPort() == 0) {
-                itr.remove();
-            }
-        }
-        Collections.sort(updateServers, new Server.ConsensusComparator());
-        return updateServers.toArray(new Server[] {});
-    }
-
     public class SplashCallback extends SwtUtil.SplashCallback {
         public void initApp() {
             this.setStatusText("Initializing Proxy");
@@ -181,8 +83,8 @@ public class SwtProxyApp extends Proxy {
             // executor.submit(new CircuitAndStreamManager());
             executor.submit(new DisplayUpdateThread());
             executor.submit(new TorHTTPProxy(8088, SwtProxyApp.this, executor));
-            for (int i = 0; i < 20; ++i) {
-                try { Thread.sleep(200); } catch (InterruptedException e) { }
+            while (!directory.isValid()) {
+              ThreadUtil.safeSleep(200);
             }
             openMainWindow(display);
         }
@@ -362,17 +264,17 @@ public class SwtProxyApp extends Proxy {
                             try {
                                 // Socket stream = new Socket(GET_IP, 80);
                                 TCPStreamProperties target = new TCPStreamProperties(GET_IP, 80);
-                                Server home = null; 
-                                for (Server s : directory.getServers().values()) {
-                                    if (s.getName().contains("SaintAndreas")) {
-                                        System.out.println(s.getFingerprint());
-                                        home = s;
-                                        break;
-                                    }
-                                }
-                                if (home != null) {
-                                    target.setCustomRoute(new Server[] { home });
-                                }
+//                                Server home = null; 
+//                                for (Server s : directory.getServers().values()) {
+//                                    if (s.getName().contains("SaintAndreas")) {
+//                                        System.out.println(s.getFingerprint());
+//                                        home = s;
+//                                        break;
+//                                    }
+//                                }
+//                                if (home != null) {
+//                                    target.setCustomRoute(new Server[] { home });
+//                                }
                                 // Circuit circuit = new Circuit(target);
                                 TCPStream stream = proxyConnect(target);
                                 stream.getOutputStream().write(GET_STRING.getBytes(Charsets.US_ASCII));
@@ -458,78 +360,6 @@ public class SwtProxyApp extends Proxy {
     }
 
 
-    // public class DescriptorFetcher implements Runnable {
-    //
-    // public String call() throws Exception {
-    // String retVal = null;
-    // return retVal;
-    // }
-    //
-    // public void run() {
-    // HttpClient client = new HttpClient();
-    // {
-    // client.getHttpConnectionManager().getParams().setSoTimeout(Config.dirV2NetworkStatusRequestTimeOut);
-    // client.getHttpConnectionManager().getParams().setConnectionTimeout(Config.dirV2NetworkStatusRequestTimeOut);
-    // }
-    //
-    // List<Server> updateServers = new
-    // ArrayList<Server>(directory.getServers().values());
-    // Collections.sort(updateServers, new Server.ConsensusComparator());
-    // CircularBuffer<Server> sources = new
-    // CircularBuffer<Server>(updateServers);
-    // Server loadFrom = sources.nextElement();
-    // while (loadFrom.getDirPort() == 0) {
-    // loadFrom = sources.nextElement();
-    // }
-    //
-    // String fingerprint = null;
-    // while (null != (fingerprint = refreshQueue.poll())) {
-    // Server server = directory.getServers().get(fingerprint);
-    // String nodeDigest = server.getDigest();
-    // getLog().debug("Loading node descriptions " + nodeDigest + " from " +
-    // loadFrom.getName() + " ( " + loadFrom.getHostname() + ":" +
-    // loadFrom.getDirPort() + ")");
-    //
-    // int retries = 0;
-    // int reloadRetries = 3;
-    // while (retries++ < reloadRetries) {
-    // GetMethod method = new GetMethod(loadFrom.getDirUrl() + nodeDigest);
-    // try {
-    // method.addRequestHeader(new Header("Host", loadFrom.getHostname()));
-    // int result = client.executeMethod(method);
-    // if (200 == result) {
-    // String descriptor = StringUtil.read(method.getResponseBodyAsStream());
-    // if (server.parseDescriptor(descriptor)) {
-    // dataCache.cacheItem(getServerKey(server), descriptor);
-    // synchronized (validServers) {
-    // validServers.add(server.getFingerprint());
-    // }
-    // if (getLog().isDebugEnabled()) {
-    // getLog().debug("got server " + server.getFingerprint());
-    // }
-    //
-    // }
-    // break;
-    // } else {
-    // throw new IllegalStateException("HTTP method got result " + result);
-    // }
-    // } catch (Exception e) {
-    // getLog().warn("result from " + loadFrom.getName() + ": " +
-    // e.getMessage());
-    // sources.remove(loadFrom);
-    // loadFrom = sources.nextElement();
-    // while (loadFrom.getDirPort() == 0) {
-    // loadFrom = sources.nextElement();
-    // }
-    // } finally {
-    // method.releaseConnection();
-    // }
-    // }
-    // }
-    //
-    // }
-    //
-    // }
 
     protected String getServerCountString() {
         return Integer.toString(directory.getValidServers().size()) + " valid servers of " + directory.getServers().size() + " known";

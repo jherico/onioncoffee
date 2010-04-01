@@ -8,6 +8,9 @@ import net.sf.onioncoffee.Config;
 import net.sf.onioncoffee.app.SwtProxyApp;
 import net.sf.onioncoffee.common.TorException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class IntegrationTest {
 
     
@@ -16,6 +19,8 @@ public class IntegrationTest {
     
     
     public static void main(String[] args) throws GeneralSecurityException, TorException, IOException, InterruptedException, ParseException{
+        Logger log = LoggerFactory.getLogger(IntegrationTest.class);
+        log.error("Test");
         Config.load();
         new SwtProxyApp();
     }
