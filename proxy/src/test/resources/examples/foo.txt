@@ -1,0 +1,30 @@
+router gabelmoo 80.190.246.100 443 0 80
+platform Tor 0.2.2.0-alpha-dev on Linux x86_64
+opt protocols Link 1 2 Circuit 1
+published 2009-07-04 14:06:08
+opt fingerprint 6833 3D07 61BC F397 A587 A0C0 B963 E4A9 E99E C4D3
+uptime 337924
+bandwidth 512000 1280000 1157666
+opt extra-info-digest E3A0F704F198134E87D5C50F95931247B4A71B54
+opt caches-extra-info
+onion-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAJV6GJVRLMP6cR3TEvEsPYcoyVie8llwrUduE5fnMxX1qI6ukbE1TskI
+V80Ni/p3XyG4Q113MpAqpSxiXlcaSFLYElDFrD208UjiN4eZdMk+yhP0faqqsbTy
+Lf1hFFhMPViYZnONHQ8fipYzghgPXAoQpdMDnFGS4HnNhjoWppSfAgMBAAE=
+-----END RSA PUBLIC KEY-----
+signing-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAL/7L5VKbe3nP1vn4xtCV6R2qSst872UbrslCcYXIS+hfVxQd8QWmVbY
+dn6WXuNeQXP3yHSixJQrMdQOcGsAbYAbNz42xnfLN31UATFBykfondQPdAxDz2CY
+I1V4PsKk9Em0CKnFgEv1BFEJsXfXm3k2FpdOgdWpI+R80s9gEnafAgMBAAE=
+-----END RSA PUBLIC KEY-----
+opt hidden-service-dir
+contact 1024D/F7C11265 Karsten Loesing <karsten dot loesing AT gmx dot net>
+reject *:*
+router-signature
+-----BEGIN SIGNATURE-----
+Qe6Y/g8YJA5d+ftFp5Aq74nRIsilFRTzPBzoTxw1tHEr8FmVFVXK4llarT6T3I8q
+If80Sot9KtxwH3vHA2nZwJoAiu/RTdfG8OkMWmPp+jDk/6zYkSzZYqfeT8t+n2XI
+7wnZwq44iKyvcNIQNlUixDjiB98Mr9an23VI43bCxXU=
+-----END SIGNATURE-----

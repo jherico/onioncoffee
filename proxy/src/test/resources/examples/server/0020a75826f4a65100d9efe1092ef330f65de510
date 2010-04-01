@@ -1,0 +1,45 @@
+router Unnamed 82.120.97.31 443 0 9030
+platform Tor 0.2.1.20 on Windows XP Service Pack 3 [workstation] {personal} {terminal services, single user}
+opt protocols Link 1 2 Circuit 1
+published 2009-12-29 15:48:40
+opt fingerprint 0020 A758 26F4 A651 00D9 EFE1 092E F330 F65D E510
+uptime 1281
+bandwidth 196608 393216 43220
+opt extra-info-digest C56C1B7544730036AD1070CE8F04249DA38CAED5
+onion-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAMB5rGthu4KXRrMY8RxkgFfT3cFBSC7qzuQXjxb+WTTMFGmQKZC6ztvp
+yeleCW9ctID8E5mAoc/Q7YGvoffkDFM1cGKX2WxoExdwae1VsDeAEz+/fR1elgai
+whk1hIrFxKeiszYUKvQBVOmtKpUZnLJX6DmvManWUib1ElHL0n0PAgMBAAE=
+-----END RSA PUBLIC KEY-----
+signing-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAN1qRwjoF3ZqB3K5bOEMe7XqwtqCwXJplXx1r4e5x37pxjluAX2gaqHY
+yp8zb231TZAIcUDkfP7FYtZIBC30iRUbf8haP7fH0utAKY3cnsAijy6vNrmiJAjY
+1MfnY2so64sMk4wLkBuIkNVxXg02qENE2V6v6JBG6KPLLni0G2LbAgMBAAE=
+-----END RSA PUBLIC KEY-----
+opt hidden-service-dir
+reject 0.0.0.0/8:*
+reject 169.254.0.0/16:*
+reject 127.0.0.0/8:*
+reject 192.168.0.0/16:*
+reject 10.0.0.0/8:*
+reject 172.16.0.0/12:*
+reject 82.120.97.31:*
+reject *:25
+reject *:119
+reject *:135-139
+reject *:445
+reject *:563
+reject *:1214
+reject *:4661-4666
+reject *:6346-6429
+reject *:6699
+reject *:6881-6999
+accept *:*
+router-signature
+-----BEGIN SIGNATURE-----
+HDAGc3/j/W5nb4PRRfF2tIpe7zMedMI9R6L9ZysmrSuMM3ulSA2hliF6JVdcR+/G
+VtIlMeXZU0/hm7yNMr3FNPZd0ljsu+sQn0GttAPLo98+6pCiZUmHxXIVzwFzq0oJ
+VOjzul277vUZvsM/ByhURDaY7r3Ow4zfVsq1VWizARY=
+-----END SIGNATURE-----

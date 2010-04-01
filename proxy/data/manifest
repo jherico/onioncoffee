@@ -1,0 +1,4 @@
+Manifest-Version: 1.2
+Created-By: Lexi Pimenidis
+Class-Path: lib/ext/GeoIP-1.1.8.jar lib/ext/bcprov-jdk14-133.jar lib/ext/bcpg-jdk14-133.jar lib/ext/junit.jar bcprov-jdk14-133.jar bcpg-jdk14-133.jar junit.jar lib/ext/systray4j.jar systray4j.jar GeoIP-1.1.8.jar
+Main-Class: net.sf.onioncoffee.proxy.Main

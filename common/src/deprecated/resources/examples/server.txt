@@ -1,0 +1,48 @@
+router k74395 85.225.51.142 9001 0 0
+platform Tor 0.2.0.35 on Linux i686
+opt protocols Link 1 2 Circuit 1
+published 2009-07-14 11:26:52
+opt fingerprint 5335 1131 F0F0 492D 8201 C89E 9B14 9573 DB83 6D69
+uptime 665193
+bandwidth 20480 30720 23590
+opt extra-info-digest 7606BAC84F5B215296F1E25CB69E33CF0FFCF33D
+onion-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAN/x6BWPsHN8T+ct+LaLf/T4BtXPhKqzhUFSUMtJg3SekGWRaVlA+IKv
+1L8YjqJmT/xVci+wPgcVOzgAixe1f249OIY6VKPfm+zygnKJ113FDpTH/W89oNkU
+61D/3uoRSqTptmzQIOa0nULOPboPFONpHcReymCEPXp+e41ODbIRAgMBAAE=
+-----END RSA PUBLIC KEY-----
+signing-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBALKeO3uE7isfJcukkHtMqHZ9yGyJ0Lb2A0WEIt/4a3Vi0iR11PPVGanM
+wAFweVaEVzWjXj67Tdi5gugl54BA2jJBnpHYxsd9vQ6iY6j595r1ZVdClQ1Ackrl
+sl7nauY1eWG+WgTywBldpDNf30xMM4QrVXHhs+vG64Y4w/1IC38XAgMBAAE=
+-----END RSA PUBLIC KEY-----
+contact Random Person <k74395 AT helgo.net>
+reject 0.0.0.0/8:*
+reject 169.254.0.0/16:*
+reject 127.0.0.0/8:*
+reject 192.168.0.0/16:*
+reject 10.0.0.0/8:*
+reject 172.16.0.0/12:*
+reject 85.225.51.142:*
+reject *:80
+reject *:25
+reject *:119
+reject *:135-139
+reject *:445
+reject *:465
+reject *:563
+reject *:587
+reject *:1214
+reject *:4661-4666
+reject *:6346-6429
+reject *:6699
+reject *:6881-6999
+accept *:*
+router-signature
+-----BEGIN SIGNATURE-----
+AbmweNgdcvTOmVzxtoXIwzMczqXL4W+V9ywfT7kIG8b8zZjlXbUIetEBgoz5vgl3
+rHoselwlL0FSU6irVgVHAaoChmd3PFFRbO5L80UwnCggX8iUqPjHLg2tXQL0He7D
+XrHneNcaR/0jjq08LzhGJovUqJ/Dp6s1WcymqDnYN/U=
+-----END SIGNATURE-----

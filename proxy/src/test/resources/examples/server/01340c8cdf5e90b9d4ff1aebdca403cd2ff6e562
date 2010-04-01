@@ -1,0 +1,29 @@
+router agate 94.142.241.138 9001 0 0
+platform Tor 0.2.0.35 on Linux x86_64
+opt protocols Link 1 2 Circuit 1
+published 2009-12-29 09:53:22
+opt fingerprint 0134 0C8C DF5E 90B9 D4FF 1AEB DCA4 03CD 2FF6 E562
+uptime 2423215
+bandwidth 5242880 10485760 0
+opt extra-info-digest 134DA6C322B37A592485D4C2C5E6E56B694980B8
+onion-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBANOPLzJBK8rz/aRBXmCns2uxUYxoJBKxAj7Nu/X2gnS0Jy+mdAGGWx/U
+QSbd3B+JWVTovEtPpn8i8zVBI+fKokBNwy6NQU1VL9MdnGHXiNkp1hHUYQapOWVr
+cpWcxFpo0kAkfzq4EAVhHxfsegGNk4gTQDWtUKErRX5cbxWmfY07AgMBAAE=
+-----END RSA PUBLIC KEY-----
+signing-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAKQVPEdcV0SzzoFJfrxO4HNCSOcDjEubvvYu3JkQBLU+LYsgI7W4QDBT
+R22Twk63ouhhUcQ5drUBV8kovMGHYruAUchk8dWAbYK3B6Oc/my9effD+4a+uk8c
+O9cPJPVTKhG62UlrMXhywk1s1cCpG+M3t1G3fDWqi94Ha9LiEMaNAgMBAAE=
+-----END RSA PUBLIC KEY-----
+opt hibernating 1
+contact Agate Torops <tor AT conuropsis dot org>
+reject *:*
+router-signature
+-----BEGIN SIGNATURE-----
+YKx6XJh6diexO03Yaw3ObgrkPS5Nn0FT5V4cEQbdnF/rbwyvjqRrNn4PBEBIdLUO
+laPLRHSb6XPMe2X1InJX8+GOtbHBXSwwtoMGKPod+hE2z9f24L4EznCaB2xUKd/l
+MippPTZ2U9WfeCWlMT8ZuEW/vx9YZwLDFEYcr8oE75s=
+-----END SIGNATURE-----

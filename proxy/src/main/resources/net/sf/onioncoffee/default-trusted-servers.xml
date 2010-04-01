@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:util="http://www.springframework.org/schema/util"
+  xsi:schemaLocation="
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+
+  <util:list id="default-trusted-servers">
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg index="0" value="3" />
+      <constructor-arg index="1" value="FFCB46DB1339DA84674C70D7CB586434C4370441" />
+      <constructor-arg index="2" value="moria1" />
+      <constructor-arg index="3" value="128.31.0.34" />
+      <constructor-arg index="4" value="9031" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="719BE45DE224B607C53707D0E2143E2D423E74CF" />
+      <constructor-arg value="moria2" />
+      <constructor-arg value="128.31.0.34" />
+      <constructor-arg value="9032" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="847B1F850344D7876491A54892F904934E4EB85D" />
+      <constructor-arg value="tor26" />
+      <constructor-arg value="86.59.21.38" />
+      <constructor-arg value="80" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="4A0CCD2DDC7995083D73F5D667100C8A5831F16D" />
+      <constructor-arg value="Tonga" />
+      <constructor-arg value="82.94.251.206" />
+      <constructor-arg value="80" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="F397038ADC51336135E7B80BD99CA3844360292B" />
+      <constructor-arg value="ides" />
+      <constructor-arg value="216.224.124.114" />
+      <constructor-arg value="9030" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="68333D0761BCF397A587A0C0B963E4A9E99EC4D3" />
+      <constructor-arg value="gabelmoo" />
+      <constructor-arg value="88.198.7.215" />
+      <constructor-arg value="80" />
+    </bean>
+    <bean class="net.sf.onioncoffee.Server">
+      <constructor-arg value="3" />
+      <constructor-arg value="7BE683E65D48141321C5ED92F075C55364AC7123" />
+      <constructor-arg value="dannenberg" />
+      <constructor-arg value="213.73.91.31" />
+      <constructor-arg value="80" />
+    </bean>
+  </util:list>
+</beans>

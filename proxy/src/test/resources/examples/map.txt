@@ -1,0 +1,4 @@
+port=9031
+fingerprint=FF:CB:46:DB:13:39:DA:84:67:4C:70:D7:CB:58:64:34:C4:37:04:41
+ip=128.31.0.34 
+version=3

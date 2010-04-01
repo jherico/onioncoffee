@@ -1,0 +1,17 @@
+signed-directory
+published 2009-04-17 17:48:57
+recommended-software 0.2.0.33,0.2.0.34,0.2.1.11-alpha,0.2.1.12-alpha,0.2.1.13-alpha,0.2.1.14-rc
+router-status 
+dir-signing-key
+-----BEGIN RSA PUBLIC KEY-----
+MIGJAoGBAMQgV2gXLbXgesWgeAsj8P1Uvm/zibrFXqwDq27lLKNgWGYGX2ax3LyT
+3nzI1Y5oLs4kPKTsMM5ft9aokwf417lKoCRlZc9ptfRbgxDx90c9GtWVmkrmDvCK
+ae59TMoXIiGfZiwWT6KKq5Zm9/Fu2Il3B2vHGkKJYKixmiBJRKp/AgMBAAE=
+-----END RSA PUBLIC KEY-----
+
+directory-signature tor26
+-----BEGIN SIGNATURE-----
+ru4/MlxDDfycDLM+gP7Ywb/iYKmoweBq4gqcRno/eMmtPolCmrlKEYK4xzlfFMmq
+jlJ3bEwR5nflkOK2zpY+zroDpveUJwbs5Fuj4xUB4donB8hg8QTqqLwSaHZSKT3B
+xz2fs6Qm1qJSfTNHrF4heXqyo3eq8oYQ71WWeENV688=
+-----END SIGNATURE-----

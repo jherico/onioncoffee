@@ -1,0 +1,57 @@
+package net.sf.onioncoffee;
+
+import java.io.IOException;
+
+import net.sf.onioncoffee.Cell.CellType;
+
+import org.saintandreas.util.Loggable;
+
+/**
+ * @author Brad Davis
+ *
+ */
+public abstract class CellSink extends Loggable{
+    private long lastActionTime; // last time, a cell was send that was not a padding cell
+    private long lastCellTime; // last time, a cell was send
+    private long created;
+
+    CellSink() {
+        lastCellTime = lastActionTime = created = System.currentTimeMillis();
+    }
+
+    public void sendCell(Cell c) throws IOException {
+        // update 'action'-timestamp, if not padding cell
+        lastCellTime = System.currentTimeMillis();
+        if (CellType.CELL_PADDING != c.command) {
+            lastActionTime = lastCellTime;
+        }
+        doSendCell(c);
+    }
+
+
+    protected abstract void doSendCell(Cell c) throws IOException;
+    public abstract void sendKeepAlive();
+
+    
+    public final long getLastActionTime() {
+        return lastActionTime;
+    }
+
+    public final long getLastCellTime() {
+        return lastCellTime;
+    }
+
+    public final long getCreated() {
+        return created;
+    }
+
+    public final long getCellIdleTime() {
+        return System.currentTimeMillis() - getLastCellTime();
+    }
+
+    public final long getActionIdleTime() {
+        return System.currentTimeMillis() - getLastActionTime();
+    }
+
+ 
+}
