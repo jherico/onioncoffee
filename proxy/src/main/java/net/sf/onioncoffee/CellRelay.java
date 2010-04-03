@@ -233,11 +233,11 @@ public class CellRelay extends Cell {
         }
         
         for (encrypting_router = 0; encrypting_router <= circuit.route_established; ++encrypting_router) {
-            CircuitNode node = circuit.route[encrypting_router];
             // check if no decryption has lead to a recognized cell
             if (encrypting_router == circuit.route_established) {
                 throw new IOException("relay cell not recognized, possibly due to decryption errors?");
             }
+            CircuitNode node = circuit.route[encrypting_router];
             // decrypt payload
             node.decrypt(payload);
             // if recognized and digest is correct, then stop decrypting

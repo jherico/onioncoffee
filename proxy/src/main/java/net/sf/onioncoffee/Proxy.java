@@ -778,7 +778,7 @@ public class Proxy extends SocketFactory {
         Circuit retVal = null;
         try {
             if (!connectionMap.containsKey(entryServer.getFingerprint())) {
-                connectionMap.put(entryServer.getFingerprint(), new ServerConnection(route[0], ioProcessor));
+                connectionMap.put(entryServer.getFingerprint(), new ServerConnection(route[0]));
             }
             ServerConnection connection = connectionMap.get(entryServer.getFingerprint());
             retVal = new Circuit(connection, route, tcpStreamProperties);

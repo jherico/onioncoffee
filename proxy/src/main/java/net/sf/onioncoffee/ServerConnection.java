@@ -1,10 +1,6 @@
 package net.sf.onioncoffee;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -13,16 +9,22 @@ import java.util.Random;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
 import net.sf.onioncoffee.common.TorException;
 
-import org.saintandreas.nio.BufferingSocketHandler;
-import org.saintandreas.nio.IOProcessor;
+import org.apache.mina.core.buffer.IoBuffer;
+import org.apache.mina.core.future.ConnectFuture;
+import org.apache.mina.core.service.IoHandlerAdapter;
+import org.apache.mina.core.session.IoSession;
+import org.apache.mina.example.echoserver.ssl.BogusSslContextFactory;
+import org.apache.mina.filter.ssl.SslFilter;
+import org.apache.mina.transport.socket.nio.NioSocketConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ServerConnection extends BufferingSocketHandler {
+public class ServerConnection extends IoHandlerAdapter {
     private static final String[] ENABLED_SUITES = { "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA" };
     private static SSLSocketFactory SOCKET_FACTORY; {
         try {
@@ -39,22 +41,29 @@ public class ServerConnection extends BufferingSocketHandler {
     boolean stopped = false;
     boolean closed = false;
     private final Server server;
+    private final IoSession session;
 
-    private final Selector selector;
     Map<Integer, Circuit> circuits = new HashMap<Integer, Circuit>();
-    private final SocketChannel sc;
-    private SocketChannel sslsc = null;
     
-    public ServerConnection(Server server, IOProcessor ioProcessor) throws IOException {
+    public ServerConnection(Server server) throws IOException {
         this.server = server;
-        selector = ioProcessor.getSelector();
-        sc = SocketChannel.open();
-        sc.configureBlocking(false);
-        ioProcessor.addRegisteringHandler(this);
-        desiredMask = SelectionKey.OP_CONNECT;
-        if (sc.connect(server.getRouterAddress())) {
-            addSSLWrapper();
+
+        NioSocketConnector connector = new NioSocketConnector();
+        connector.setConnectTimeoutMillis(30*1000L);
+        connector.setHandler(this);
+        SslFilter sslFilter;
+        try {
+            sslFilter = new SslFilter(BogusSslContextFactory.getInstance(false));
+        } catch (GeneralSecurityException e) {
+            throw new IOException(e);
         }
+        sslFilter.setUseClientMode(true);
+        sslFilter.setEnabledCipherSuites(ENABLED_SUITES);
+        connector.getFilterChain().addLast("sslFilter", sslFilter);
+        ConnectFuture cf = connector.connect(server.getRouterAddress());
+        cf.awaitUninterruptibly();
+        session = cf.getSession();
+        System.out.println();
     }
 
 
@@ -72,7 +81,11 @@ public class ServerConnection extends BufferingSocketHandler {
      * @see TLSDispatcher
      */
     public void sendCell(Cell c) throws IOException {
-        write(c.toByteArray());
+        session.write(IoBuffer.wrap(c.toByteArray()));
+    }
+    
+    private Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
     }
 
     synchronized public int getFreeCircuitId() {
@@ -139,58 +152,45 @@ public class ServerConnection extends BufferingSocketHandler {
             }
         }
         if (force || circuits.isEmpty()) {
-            try {
-                sslsc.close();
-                sc.close();
-            } catch (IOException e) {
-            }
+            session.close(true);
         }
     }
 
+    byte[] cellbuffer = new byte[512];
+    int cellbufferfilled = 0;
 
-    private void addSSLWrapper() throws IOException {
-        SSLSocket anSSLSocket = (SSLSocket) SOCKET_FACTORY.createSocket(sc.socket(), server.getHostname(), server.getRouterPort(), true);
-        anSSLSocket.setEnabledCipherSuites(ENABLED_SUITES);
-        sslsc = anSSLSocket.getChannel();
-        sslsc.configureBlocking(false);
-        getSocketChannel().register(getSelector(), SelectionKey.OP_READ | SelectionKey.OP_WRITE, this);
-    }
+    @Override
+    public void messageReceived(IoSession session, Object message) throws IOException {
+        IoBuffer iobuffer = (IoBuffer) message;
+        int originalsize = iobuffer.remaining();
+        int remaining = iobuffer.remaining();
 
-    public SocketChannel getSocketChannel() {
-        return sslsc != null ? sslsc : sc;
+        if (originalsize % Cell.CELL_TOTAL_SIZE != 0) {
+            System.out.println();
+        }
         
-    }
+        // complete any previous partial buffer
+        if (cellbufferfilled != 0) {
+            int fillSize = Math.min(Cell.CELL_TOTAL_SIZE - cellbufferfilled, iobuffer.remaining());
+            iobuffer.get(cellbuffer, cellbufferfilled, fillSize);
+            cellbufferfilled += fillSize;
+        }
 
-    protected Selector getSelector() {
-        return selector;
-    }
+        if (cellbufferfilled == Cell.CELL_TOTAL_SIZE) {
+            onCell(Cell.read(cellbuffer, circuits));
+            cellbufferfilled = 0;
+        }
 
-    @Override
-    public void onConnect(SelectionKey sk) throws IOException {
-        super.onConnect(sk);
-        addSSLWrapper();
-    }
-    
-    @Override
-    public void onWrite(SelectionKey sk) throws IOException {
-        super.onWrite(sk);
-    }
-
-    @Override
-    public void onRead(SelectionKey sk) throws IOException {
-        super.onRead(sk);
-        if (inBuffer.size() >= Cell.CELL_TOTAL_SIZE) {
-            byte[] data = inBuffer.toByteArray();
-            int remaining = data.length;
-            int offset = 0;
-            while ( remaining >= Cell.CELL_TOTAL_SIZE) {
-                Cell c = Cell.read(data, offset, circuits);
-                onCell(c);
-                offset += Cell.CELL_TOTAL_SIZE;
-                remaining -= Cell.CELL_TOTAL_SIZE;
-            }
-            inBuffer = new ByteArrayOutputStream();
-            inBuffer.write(data, offset, remaining);
+        // grab any complete cells in the packet
+        while ((remaining = iobuffer.remaining()) >= Cell.CELL_TOTAL_SIZE) {
+            onCell(Cell.read(iobuffer.array(), iobuffer.position(), circuits));
+            iobuffer.position(iobuffer.position() + Cell.CELL_TOTAL_SIZE);
+        }
+        
+        // buffer any leftover bytes for the next incoming message
+        if ((remaining = iobuffer.remaining()) > 0) {
+            cellbufferfilled = iobuffer.remaining();
+            iobuffer.get(cellbufferfilled);
         }
     }
 

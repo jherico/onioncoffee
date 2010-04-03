@@ -99,13 +99,13 @@ public class Directory extends Loggable {
                   validServers.add(server.getFingerprint());
               }
               retVal = true;
-              if (getLog().isDebugEnabled()) {
-                  getLog().debug("got server " + server.getFingerprint());
+              if (getLog().isTraceEnabled()) {
+                  getLog().trace("got server " + server.getFingerprint());
               }
           }
         } catch (Exception e) {
             // FIXME
-            getLog().error("Failed to parse server descriptor", e);
+//            getLog().error("Failed to parse server descriptor", e);
         }
         return retVal;
     }

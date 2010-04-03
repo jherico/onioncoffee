@@ -163,8 +163,13 @@ public class Cell extends Loggable {
         byte[] payload = new byte[Cell.CELL_PAYLOAD_SIZE]; 
         System.arraycopy(data, Cell.CELL_PAYLOAD_POS + offset, payload, 0, Cell.CELL_PAYLOAD_SIZE);
         if (command == CellType.CELL_RELAY) {
-            CellRelay.decryptPayload(payload, circuit);
-            retVal = new CellRelay(circuit, circuitId, payload);
+            try {
+                CellRelay.decryptPayload(payload, circuit);
+                retVal = new CellRelay(circuit, circuitId, payload);
+            } catch (RuntimeException e) {
+                e.printStackTrace();
+                throw e;
+            }
         } else {
             retVal = new Cell(circuit, circuitId, command, payload);
         }

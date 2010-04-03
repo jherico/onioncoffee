@@ -91,6 +91,7 @@ public class RefreshableDirectory extends Directory {
         private final List<DirectoryConnection> dirConns = new LinkedList<DirectoryConnection>();
         private final Map<String, ServerFault> serverFaults = new HashMap<String, ServerFault>();
         private final Set<String> goodServers = new HashSet<String>();
+        private final Set<String> invalidServers = new HashSet<String>();
         private final HttpParams params = new BasicHttpParams();
 
         private class ServerFault {
@@ -136,7 +137,9 @@ public class RefreshableDirectory extends Directory {
                     parseConsensus(result);
                 } else {
                     dataCache.cacheItem(getServerKey(server), result);
-                    parseServer(server, result);
+                    if (!parseServer(server, result)) {
+                        invalidServers.add(server.getFingerprint());
+                    }
                 }
             }
             
@@ -322,7 +325,7 @@ public class RefreshableDirectory extends Directory {
         }
 
         private void refreshConsensus() {
-            if (getFreshUntil().isBeforeNow()) {
+            if (getFreshUntil().isBeforeNow() && getConsensusAge() > 1000 * 60 * 30) {
                 boolean activeRequest = false;
                 for (DirectoryRequest req : pendingRequests) {
                     if (RequestType.Consensus == req.type) {
@@ -353,7 +356,7 @@ public class RefreshableDirectory extends Directory {
                     itr.remove();
                 } 
             }
-                
+            pendingServers.removeAll(invalidServers);
             for (String s : pendingServers) {
                 pendingRequests.add(new DirectoryRequest(getServers().get(s)));
             }
@@ -371,7 +374,7 @@ public class RefreshableDirectory extends Directory {
                     cleanExceptionMap();
                     Thread.sleep(100);
                 } catch (Exception e) {
-                    LogFactory.getLog(RefreshThread.class).error("Failure", e);
+//                    LogFactory.getLog(RefreshThread.class).error("Failure", e);
                 }
             }
         }

@@ -259,48 +259,16 @@ public class SwtProxyApp extends Proxy {
                         @Override
                         public void run() {
                             Thread.currentThread().setName("Test Thread");
-                            final String GET_STRING = "GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\nUser-Agent: Jakarta Commons-HttpClient/3.0.1\r\n\r\n";
-                            final String GET_IP = "74.125.19.105";
+                            final String GET_STRING = "GET / HTTP/1.1\r\nHost: slashdot.org\r\nConnection: close\r\nUser-Agent: Jakarta Commons-HttpClient/3.0.1\r\n\r\n";
+                            final String GET_IP = "slashdot.org";
                             try {
-                                // Socket stream = new Socket(GET_IP, 80);
                                 TCPStreamProperties target = new TCPStreamProperties(GET_IP, 80);
-//                                Server home = null; 
-//                                for (Server s : directory.getServers().values()) {
-//                                    if (s.getName().contains("SaintAndreas")) {
-//                                        System.out.println(s.getFingerprint());
-//                                        home = s;
-//                                        break;
-//                                    }
-//                                }
-//                                if (home != null) {
-//                                    target.setCustomRoute(new Server[] { home });
-//                                }
-                                // Circuit circuit = new Circuit(target);
                                 TCPStream stream = proxyConnect(target);
                                 stream.getOutputStream().write(GET_STRING.getBytes(Charsets.US_ASCII));
                                 stream.getOutputStream().flush();
-                                ByteArrayOutputStream bais = new ByteArrayOutputStream();
-                                InputStream is = stream.getInputStream();
-                                int read = -1;
-                                System.out.println();
-                                while (-1 != (read = is.read())) {
-                                    bais.write(read);
-                                }
-                                byte[] SEARCH_TERM = { 13, 10, 13, 10 };
-                                byte[] data = bais.toByteArray();
-
-                                int index = find(data, SEARCH_TERM);
-                                if (index != -1) {
-                                    index += 4;
-                                    data = Arrays.copyOfRange(data, index, data.length - index);
-                                    index = find(data, new byte[] { 13, 10 });
-                                    index += 2;
-                                    data = Arrays.copyOfRange(data, index, data.length - index);
-                                    is = new ByteArrayInputStream(data);
-                                }
-                                String result = StringUtil.read(is);
-                                stream.close();
+                                String result = StringUtil.read(stream.getInputStream());
                                 System.out.println(result);
+                                stream.close();
                             } catch (Exception e) {
                                 getLog().warn(e);
                                 e.printStackTrace();
