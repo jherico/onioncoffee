@@ -7,11 +7,11 @@ import java.util.concurrent.ExecutorService;
 
 public abstract class SocketProxy extends StreamProxy implements Runnable {
     static final int sleep_millis = 10;
-    protected final int port;
+    private final int listenPort;
     protected final ExecutorService executor;
 
     public SocketProxy(int port, ExecutorService executor) {
-        this.port = port;
+        this.listenPort = port;
         this.executor = executor;
     }
     
@@ -19,7 +19,7 @@ public abstract class SocketProxy extends StreamProxy implements Runnable {
     @Override
     public void run() {
         try {
-            ServerSocket ss = new ServerSocket(port);
+            ServerSocket ss = new ServerSocket(listenPort);
             while (!executor.isShutdown()) {
                 Socket client = ss.accept();
                 launchClient(client);

@@ -243,7 +243,7 @@ public class Directory extends Loggable {
         return freshUntil;
     }
 
-    public static boolean consensusValid(String candidate) {
+    public static boolean consensusFresh(String candidate) {
         boolean retVal = false;
         if (candidate != null) {
             SimpleDateFormat dateFormat = new SimpleDateFormat(Constants.PUBLISHED_ITEM_SIMPLEDATE_FORMAT);
@@ -251,8 +251,8 @@ public class Directory extends Loggable {
             Matcher m = p.matcher(candidate);
             if (m.find()) {
                 try {
-                    Date validUntil = dateFormat.parse(m.group(3));
-                    if (Calendar.getInstance().getTime().before(validUntil)) {
+                    Date freshUntil = dateFormat.parse(m.group(2));
+                    if (Calendar.getInstance().getTime().before(freshUntil)) {
                         retVal = true;
                     }
                 } catch (ParseException e) {

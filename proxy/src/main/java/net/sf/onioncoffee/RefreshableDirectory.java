@@ -73,7 +73,7 @@ public class RefreshableDirectory extends Directory {
 
     public RefreshableDirectory(ExecutorService executor) {
         String consensus = dataCache.getCachedItem(CONSENSUS_KEY);
-        if (consensus != null && Directory.consensusValid(consensus)) {
+        if (consensus != null && Directory.consensusFresh(consensus)) {
             parseConsensus(consensus);
         } 
 

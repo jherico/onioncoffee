@@ -1,24 +1,46 @@
 package net.sf.onioncoffee.app;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.Socket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import javax.net.SocketFactory;
+
+import org.apache.http.Header;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestFactory;
+import org.apache.http.HttpResponse;
+import org.apache.http.MethodNotSupportedException;
+import org.apache.http.ProtocolVersion;
+import org.apache.http.RequestLine;
+import org.apache.http.impl.DefaultHttpClientConnection;
+import org.apache.http.impl.DefaultHttpRequestFactory;
+import org.apache.http.impl.DefaultHttpServerConnection;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicHttpRequest;
+import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicRequestLine;
+import org.apache.http.message.BasicStatusLine;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
 import org.saintandreas.util.SocketUtil;
 
 public class HTTPProxy extends SocketProxy {
-	private static Log LOG = LogFactory.getLog(HTTPProxy.class);
+	protected SocketFactory remoteSocketFactory = null;
 
+	private HttpParams params = new BasicHttpParams();
+	
     public HTTPProxy(int port, ExecutorService executor) {
+        this(port, executor, null);
+    }
+
+    public HTTPProxy(int port, ExecutorService executor, SocketFactory remoteSocketFactory) {
         super(port, executor);
+        this.remoteSocketFactory = remoteSocketFactory;
     }
 
     @Override
@@ -30,10 +52,24 @@ public class HTTPProxy extends SocketProxy {
     	BAD_HEADERS.add("connection");
     	BAD_HEADERS.add("proxy-connection");
     	BAD_HEADERS.add("keep-alive");
-    	BAD_HEADERS.add("user-agent"); 
+//    	BAD_HEADERS.add("user-agent"); 
     }
     
+    protected static final HttpResponse success200; 
+    static {
+        success200 = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("HTTP", 1, 0), 200, "Connection Established"));
+    }
 
+
+    public Socket getRemoteSocket(String host, int port) throws UnknownHostException, IOException {
+        Socket retVal = null;
+        if (remoteSocketFactory != null) {
+            retVal = remoteSocketFactory.createSocket(host, port);
+        } else {
+            retVal = new Socket(host, port);
+        }
+        return retVal;
+    }
     class Connection implements Runnable {
 
         /** http header for CONNECT-calls */
@@ -45,7 +81,6 @@ public class HTTPProxy extends SocketProxy {
 //                + "The request failed.<br>\r\n<pre>";
 //        private static final String error500b = "</pre>\r\n</BODY></HTML>\r\n";
 //        /** just some $arbitrarily chosen variable ;-) **/
-        protected static final String success200 = "HTTP/1.0 200 Connection Established\r\n\r\n";
 
         protected final Socket local;
         protected int timeout = 60000;
@@ -56,122 +91,105 @@ public class HTTPProxy extends SocketProxy {
             this.local = local;
         }
 
+        private class MyDefaultHttpRequestFactory extends DefaultHttpRequestFactory {
+            @Override
+            public HttpRequest newHttpRequest(final RequestLine requestline) 
+                throws MethodNotSupportedException {
+                if (requestline == null) {
+                    throw new IllegalArgumentException("Request line may not be null");
+                }
+                String method = requestline.getMethod();
+                if ("CONNECT".equalsIgnoreCase(method)) {
+                    return new BasicHttpRequest(requestline); 
+                }
+                return super.newHttpRequest(requestline);
+            }
+
+        }
         
+        private class MyDefaultHttpServerConnection extends DefaultHttpServerConnection {
+            @Override
+            protected HttpRequestFactory createHttpRequestFactory() {
+                return new MyDefaultHttpRequestFactory();
+            }
+        }
         public void run() {
             boolean https = false;
+            String remoteHost = null;
+            String remotePath = "/";
+            int remotePort = 80;
             try {
-                // prepare parsing of http-request
-                StringBuffer request = new StringBuffer();
-                int body_length = 0;
-                int port = 80;
-                String host = null;
-                
-                // parsing first line
-                String requestLine = null; //HttpParser.readLine(local.getInputStream(), "US-ASCII"); 
-                Thread.currentThread().setName("HTTPConnection " + requestLine);
-                String[] parts = requestLine.split("[ ]");
-                if (parts[0].startsWith("CONNECT")) {
-                	https = true;
-                    String[] tt = parts[1].split("[:]");
-                    host = tt[0].trim();
-                    port = Integer.parseInt(tt[1].trim());
-                }
-                // HTTP-Protocol
-                request.append(parts[0] + " ");
+                DefaultHttpServerConnection localConnection = new MyDefaultHttpServerConnection();
+                localConnection.bind(local, params);
+                HttpRequest inHttpRequest = localConnection.receiveRequestHeader();
 
-                if (parts[1].startsWith("http://")) {
-                    String uri_without_protocol = parts[1].substring(7);
-                    int pos_next_slash = uri_without_protocol.indexOf('/');
-                    host = uri_without_protocol.substring(0, pos_next_slash - 1);
-                    if (host.indexOf(':') >= 0) {
-                        try {
-                            String[] tt = requestLine.split("[:]");
-                            host = tt[0].trim();
-                            port = Integer.parseInt(tt[1].trim());
-                        } catch (NumberFormatException e) {
-                        }
+                if ("CONNECT".equalsIgnoreCase(inHttpRequest.getRequestLine().getMethod())){
+                    https = true;
+                    remoteHost = inHttpRequest.getRequestLine().getUri();
+                    int index = remoteHost.indexOf(':');
+                    remotePort = Integer.parseInt(remoteHost.substring(index + 1));
+                    remoteHost = remoteHost.substring(0, index);
+                } else {
+                    URL url = new URL(inHttpRequest.getRequestLine().getUri());
+                    remoteHost = url.getHost();
+                    remotePath = url.getFile();
+                    remotePort = url.getPort() == -1 ? url.getDefaultPort() : url.getPort();
+                }
+                
+                BasicRequestLine requestLine = new BasicRequestLine(
+                        inHttpRequest.getRequestLine().getMethod(), 
+                        remotePath, 
+                        new ProtocolVersion("HTTP", 1, 1));
+                BasicHttpRequest outHttpRequest = new BasicHttpRequest(requestLine);
+
+                Header [] headers = inHttpRequest.getAllHeaders();
+                for (Header h : headers) {
+                    String headerName = h.getName().toLowerCase();
+                    if (BAD_HEADERS.contains(headerName)) {
+                        continue;
                     }
-                    request.append(uri_without_protocol.substring(pos_next_slash));
-                } else if (!https) {
-                    throw new Exception("unsupported protocol");
+                    outHttpRequest.addHeader(h);
                 }
-                
-                for (int i = 2; i < parts.length; ++i) {
-                    request.append(" " + parts[i]);
+                outHttpRequest.addHeader(new BasicHeader("Connection", "close"));
+                Socket remote = getRemoteSocket(remoteHost, remotePort);
+                try {
+                    if (https) {
+                        // send HTTP-success message
+                        localConnection.sendResponseHeader(success200);
+                        localConnection.flush();
+                        long start = System.currentTimeMillis();
+                        while (local.isConnected() && remote.isConnected() && System.currentTimeMillis() - start < timeout) {
+                            if (relay(local.getInputStream(), local.getOutputStream(), remote.getInputStream(), remote.getOutputStream())) {
+                                start = System.currentTimeMillis();
+                            } else {
+                                Thread.sleep(10);
+                            }
+                        }
+                    } else {
+                        // write http-request
+                        DefaultHttpClientConnection clientConnection = new DefaultHttpClientConnection();
+                        clientConnection.bind(remote, params);
+                        clientConnection.sendRequestHeader(outHttpRequest);
+                        clientConnection.flush();
+                        HttpResponse response = clientConnection.receiveResponseHeader();
+                        localConnection.sendResponseHeader(response);
+                        clientConnection.receiveResponseEntity(response);
+                        localConnection.sendResponseEntity(response);
+                        localConnection.flush();
+                    } 
+                } finally {
+                    SocketUtil.safeClose(remote);
                 }
-                request.append("\r\n");
-
-                BasicHeader [] headers = null; //HttpRequestParser.parseHeaders(local.getInputStream(), "US-ASCII");
-                for (BasicHeader h : headers) {
-                	String headerName = h.getName().toLowerCase();
-                	if ("host".equals(headerName)) {
-                		host = h.getValue();
-                		int colonIndex = host.indexOf(':'); 
-                		if (colonIndex >= 0) {
-                			port = Integer.valueOf(host.substring(colonIndex + 1));
-                			host = host.substring(0, colonIndex);
-                		} 
-                	} else if ("content-Length".equals(headerName)) {
-                        try {
-                            body_length = Integer.parseInt(h.getValue().trim());
-                        } catch (NumberFormatException e) {
-                        	LOG.warn("Unable to parse header " + h.toString());
-                            body_length = 0;
-                            continue;
-                        }                		
-                	} else if (BAD_HEADERS.contains(headerName)) {
-                		continue;
-                	}
-                	request.append(h.toString());	
-                }
-                request.append("User-Agent: Jakarta Commons-HttpClient/3.0.1\r\nConnection: close\r\n\r\n");
-                // read request body
-                if (body_length != 0) {
-	                char[] body = new char[8192];
-	                int charsRead = 0;
-	                InputStreamReader reader = new InputStreamReader(local.getInputStream(), "US-ASCII");
-	                while (body_length != 0) {
-	                	charsRead = reader.read(body);
-                		request.append(body, 0, charsRead);
-                		body_length -= charsRead;
-	                }
-                }
-                
-                // remote connection
-                finish(local, host,  port, https, request.toString());
             } catch (Exception e) {
             	System.out.println(e);
+            	e.printStackTrace();
+            	System.out.println(remoteHost + ":" + remotePort + " " + remotePath);
             } finally {
                 SocketUtil.safeClose(local);
             }
             Thread.currentThread().setName("Idle");
         }
 
-        protected void finish(Socket local, String host, int port, boolean https, String request) throws UnknownHostException, IOException, InterruptedException { 
-            Socket remote = new Socket(host, port);
-        	try {
-                if (https) {
-                    // send HTTP-success message
-                    OutputStream local_write = local.getOutputStream();
-                    local_write.write(success200.getBytes());
-                    local_write.flush();
-                } else {
-                    // write http-request
-                    remote.getOutputStream().write(request.toString().getBytes("US-ASCII"));
-                    remote.getOutputStream().flush();
-                } 
-                long start = System.currentTimeMillis();
-                while (local.isConnected() && remote.isConnected() && System.currentTimeMillis() - start < timeout) {
-                	if (relay(local.getInputStream(), local.getOutputStream(), remote.getInputStream(), remote.getOutputStream())) {
-                		start = System.currentTimeMillis();
-                	} else {
-                		Thread.sleep(50);
-                	}
-                }
-        	} finally {
-        		SocketUtil.safeClose(remote);
-        	}
-        }
     }
 
 }

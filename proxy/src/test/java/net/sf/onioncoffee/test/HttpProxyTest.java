@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.sf.onioncoffee.app.HTTPProxy;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
@@ -38,26 +39,18 @@ import org.apache.http.protocol.RequestExpectContinue;
 import org.apache.http.protocol.RequestTargetHost;
 import org.apache.http.protocol.RequestUserAgent;
 import org.apache.http.util.EntityUtils;
-import org.saintandreas.nio.IOProcessor;
 
 public class HttpProxyTest {
 
-	public static void main3(String [] args) throws InterruptedException {
+	public static void main(String [] args) throws InterruptedException {
 		ExecutorService service = Executors.newCachedThreadPool();
-//		HTTPProxy proxy = new HTTPProxy(8085, service);
-//		service.execute(proxy);
-		IOProcessor cn = new IOProcessor(service);
-		service.execute(cn);
-//		cn.newRequest("http://slashdot.org/");
-//		cn.newRequest("http://slashdot.org/index.pl?section=bsd");
-//		cn.newRequest("http://www.saintandreas.org/");
-//		cn.newRequest("http://www.saintandreas.org/resume.html");
-//		cn.newRequest("http://www.google.com");
+		HTTPProxy proxy = new HTTPProxy(8088, service);
+		service.execute(proxy);
 		Thread.sleep(1000 * 60 * 60);
 	}
 	
 
-    public static void main(String[] args) throws Exception {
+    public static void main3(String[] args) throws Exception {
     	HttpParams params = new BasicHttpParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 5000)
         .setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 10000)
         .setIntParameter(CoreConnectionPNames.SOCKET_BUFFER_SIZE, 8 * 1024)

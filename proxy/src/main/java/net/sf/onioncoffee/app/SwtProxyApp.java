@@ -50,7 +50,6 @@ public class SwtProxyApp extends Proxy {
     private static Integer[] CIRCUIT_COLUMN_WIDTHS = { 75, 80 };
 
     private final Display display = new Display();
-    private ConnectingIOReactor ioReactor;
 
     private Shell mainwindow = null;
     private Label serverCount;
@@ -68,11 +67,6 @@ public class SwtProxyApp extends Proxy {
         }
         display.dispose();
         executor.shutdown();
-        try {
-            ioReactor.shutdown();
-        } catch (IOException e) {
-            getLog().warn(e);
-        }
     }
 
     public class SplashCallback extends SwtUtil.SplashCallback {
@@ -80,9 +74,9 @@ public class SwtProxyApp extends Proxy {
             this.setStatusText("Initializing Proxy");
             this.setProgressPercent(.02f);
             // spawns idle circuits
-            // executor.submit(new CircuitAndStreamManager());
+            //executor.submit(new CircuitAndStreamManager());
             executor.submit(new DisplayUpdateThread());
-            executor.submit(new TorHTTPProxy(8088, SwtProxyApp.this, executor));
+            executor.submit(new HTTPProxy(8088, executor, SwtProxyApp.this));
             while (!directory.isValid()) {
               ThreadUtil.safeSleep(200);
             }
@@ -259,20 +253,39 @@ public class SwtProxyApp extends Proxy {
                         @Override
                         public void run() {
                             Thread.currentThread().setName("Test Thread");
-                            final String GET_STRING = "GET / HTTP/1.1\r\nHost: slashdot.org\r\nConnection: close\r\nUser-Agent: Jakarta Commons-HttpClient/3.0.1\r\n\r\n";
-                            final String GET_IP = "slashdot.org";
+                            final String GET_STRING = "GET / HTTP/1.1\r\nHost: google.com\r\nConnection: close\r\nUser-Agent: Jakarta Commons-HttpClient/3.0.1\r\n\r\n";
+                            final String GET_IP = "google.com";
                             try {
+                                // TheUrbanSpaceman (?) deathcoreIII (?) noddy (?)
                                 TCPStreamProperties target = new TCPStreamProperties(GET_IP, 80);
+//                                target.setCustomRoute(getCustomRoute(new String[] { "TheUrbanSpaceman", "deathcoreIII", "noddy" } ));
                                 TCPStream stream = proxyConnect(target);
                                 stream.getOutputStream().write(GET_STRING.getBytes(Charsets.US_ASCII));
                                 stream.getOutputStream().flush();
                                 String result = StringUtil.read(stream.getInputStream());
-                                System.out.println(result);
+                                System.out.println("SCORE: " + result.length());
                                 stream.close();
                             } catch (Exception e) {
                                 getLog().warn(e);
                                 e.printStackTrace();
                             }
+                        }
+
+                        private Server[] getCustomRoute(String[] strings) {
+                            Server[] retVal = new Server[strings.length];
+                            for (int i = 0; i < strings.length; ++i) {
+                                retVal[i] = findServer(strings[i]);
+                            }
+                            return retVal;
+                        }
+
+                        private Server findServer(String string) {
+                            for (Server s : directory.getServers().values()) {
+                                if (s.getName().equals(string)) {
+                                    return s;
+                                }
+                            }
+                            return null;
                         }
 
                         public boolean equals(byte[] a, int aoffset, byte[] b, int boffset, int length) {

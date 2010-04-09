@@ -117,6 +117,33 @@ public class CellRelay extends Cell {
     static final int RELAY_LENGTH_POS = RELAY_DIGEST_POS + RELAY_DIGEST_SIZE;
     static final int RELAY_DATA_POS = RELAY_LENGTH_POS + RELAY_LENGTH_SIZE;
 
+    protected static CellRelay[] getRelayCells(TCPStream c, byte[] buffer) {
+        return getRelayCells(c, buffer, 0, buffer.length);
+    }
+    
+    protected static CellRelay[] getRelayCells(TCPStream  c, byte[] buffer, int length) {
+        return getRelayCells(c, buffer, 0, length);
+    }
+
+    public static CellRelay[] getRelayCells(TCPStream c, byte[] buffer, int offset, int length) {
+        int count = length / RELAY_DATA_SIZE;
+        if (0 != length % RELAY_DATA_SIZE) {
+            ++count;
+        }
+        CellRelay[] retVal = new CellRelay[count];
+        int cellIndex =0;
+        while (length != 0) {
+            int curCellSize = Math.min(length, RELAY_DATA_SIZE);
+            CellRelay cell = retVal[cellIndex] = new CellRelay(c, RelayType.RELAY_DATA);
+            cell.appendData(buffer, offset, curCellSize);
+            ++cellIndex;
+            length -= curCellSize;
+            offset += curCellSize;
+        }
+        return retVal;
+    }
+
+
     protected CellRelay(Circuit c, RelayType relay_command) {
         super(c, CellType.CELL_RELAY);
         this.relayCommand = relay_command;
@@ -192,9 +219,14 @@ public class CellRelay extends Cell {
 
 
     public void appendData(byte[] data, int length) {
-        System.arraycopy(data, 0, this.data, this.dataLength, length);
+        appendData(data, 0, length);
+    }
+
+    public void appendData(byte[] data, int offset, int length) {
+        System.arraycopy(data, offset, this.data, this.dataLength, length);
         this.dataLength += length;
     }
+
     
     public byte[] extractData(int offset, int length) {
         byte[] retVal = new byte[length];

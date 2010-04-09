@@ -50,35 +50,11 @@ public class TCPStream extends CellSink implements Closeable {
      * @author Lexi Pimenidis
      */
     class TCPStreamOutputStream extends OutputStream {
-        TCPStream stream;
         boolean stopped; // as stop() is depreacated we use this toggle variable
-        private final byte[] buffer = new byte[CellRelay.RELAY_DATA_SIZE];;
-        private int bufferFilled;
-
-        TCPStreamOutputStream(TCPStream stream) {
-            this.stream = stream;
-            bufferFilled = 0;
-        }
 
         @Override
         public void close() {
             this.stopped = true;
-        }
-
-        @Override
-        public synchronized void flush() throws IOException {
-            if (stopped) {
-                throw new IOException("TCPStreamOutputStream.flush(): output closed");
-            }
-
-            if (bufferFilled < 1) {
-                return;
-            }
-
-            CellRelay cell = new CellRelay(stream, RelayType.RELAY_DATA);
-            cell.appendData(buffer, bufferFilled);
-            stream.sendCell(cell);
-            bufferFilled = 0;
         }
 
         @Override
@@ -91,20 +67,10 @@ public class TCPStream extends CellSink implements Closeable {
             if (len == 0) {
                 return;
             }
-
-            if (bufferFilled == buffer.length) {
-                flush();
-            } 
-            
-            while (len > 0) {
-                int bytesToSend = Math.min(len, buffer.length - bufferFilled);
-                System.arraycopy(b, off, buffer, bufferFilled, bytesToSend);
-                bufferFilled += bytesToSend;
-                if (bufferFilled == buffer.length) {
-                    flush();
-                }
-                len -= bytesToSend;
+            for (CellRelay cell : CellRelay.getRelayCells(TCPStream.this, b, off, len)) {
+                sendCell(cell);
             }
+            
         }
 
         @Override
@@ -240,7 +206,7 @@ public class TCPStream extends CellSink implements Closeable {
         this.queue.addHandler(qhFC);
         qhT2J = new QueueTor2JavaHandler(this);
         this.queue.addHandler(qhT2J);
-        outputStream = new TCPStreamOutputStream(this);
+        outputStream = new TCPStreamOutputStream();
 
         LogFactory.getLog(getClass()).info("TCPStream: build stream " + this + " within " + setupDuration + " ms");
         // attach stream to history

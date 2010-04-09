@@ -7,6 +7,9 @@
   </parent>
   <groupId>net.sf.onioncoffee</groupId>
   <artifactId>proxy</artifactId>
+  <properties>
+    <hc.version>4.1-alpha1</hc.version>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -38,8 +41,14 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore-nio</artifactId>
-      <version>4.0.1</version>
+      <version>${hc.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>${hc.version}</version>
+    </dependency>
+    
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>

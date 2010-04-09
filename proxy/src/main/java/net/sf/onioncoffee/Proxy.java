@@ -39,7 +39,9 @@ import org.apache.commons.collections15.Predicate;
 import org.apache.commons.collections15.functors.InstantiateFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.saintandreas.nio.IOProcessor;
+import org.apache.mina.core.service.IoProcessor;
+import org.apache.mina.transport.socket.nio.NioProcessor;
+import org.apache.mina.transport.socket.nio.NioSession;
 import org.saintandreas.util.StringUtil;
 import org.saintandreas.util.ThreadUtil;
 
@@ -56,7 +58,7 @@ public class Proxy extends SocketFactory {
     protected final ExecutorService executor = Executors.newCachedThreadPool();
     protected Directory directory = new RefreshableDirectory(executor);
     private final Set<String> excludedNodesByConfig = new HashSet<String>();
-    private final IOProcessor ioProcessor;
+    private final IoProcessor<NioSession> ioProcessor;
     
     // Map of server class C addresses to servers that share that class C
     @SuppressWarnings("unchecked")
@@ -69,7 +71,7 @@ public class Proxy extends SocketFactory {
     // nicknames of currently used nodes in circuits as key, # of cirs - value
     private final Map<String, ServerConnection> connectionMap = new HashMap<String, ServerConnection>();
     
-    private class CircuitAndStreamManager implements Runnable {
+    protected class CircuitAndStreamManager implements Runnable {
         private final Log LOG = LogFactory.getLog(CircuitAndStreamManager.class);
 
         // at least this amount of circuits should always be available
@@ -308,20 +310,20 @@ public class Proxy extends SocketFactory {
         }
 
         public Object getOption(int optID) throws SocketException {
-            if (optID == TOR_RETRIES_CONNECT_OPT) {
-                return retriesConnect;
-            } else if (optID == TOR_MAXIMUM_ROUTE_LEN) {
-                return maximumRouteLen;
-            }
+//            if (optID == TOR_RETRIES_CONNECT_OPT) {
+//                return retriesConnect;
+//            } else if (optID == TOR_MAXIMUM_ROUTE_LEN) {
+//                return maximumRouteLen;
+//            }
             return null;
         }
 
         public void setOption(int optID, Object value) throws SocketException {
-            if (optID == TOR_RETRIES_CONNECT_OPT) {
-                retriesConnect = ((Integer) value).intValue();
-            } else if (optID == TOR_MAXIMUM_ROUTE_LEN) {
-                maximumRouteLen = ((Integer) value).intValue();
-            }
+//            if (optID == TOR_RETRIES_CONNECT_OPT) {
+//                retriesConnect = ((Integer) value).intValue();
+//            } else if (optID == TOR_MAXIMUM_ROUTE_LEN) {
+//                maximumRouteLen = ((Integer) value).intValue();
+//            }
         }
     }
 
@@ -357,8 +359,7 @@ public class Proxy extends SocketFactory {
 
     public Proxy() {
         Config.load();
-        this.ioProcessor = new IOProcessor(executor);
-        executor.submit(ioProcessor);
+        this.ioProcessor = new NioProcessor(executor);
     }
 
     protected Log getLog() {
@@ -778,7 +779,7 @@ public class Proxy extends SocketFactory {
         Circuit retVal = null;
         try {
             if (!connectionMap.containsKey(entryServer.getFingerprint())) {
-                connectionMap.put(entryServer.getFingerprint(), new ServerConnection(route[0]));
+                connectionMap.put(entryServer.getFingerprint(), new ServerConnection(route[0], ioProcessor));
             }
             ServerConnection connection = connectionMap.get(entryServer.getFingerprint());
             retVal = new Circuit(connection, route, tcpStreamProperties);
