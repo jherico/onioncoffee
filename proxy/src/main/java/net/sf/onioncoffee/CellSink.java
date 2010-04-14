@@ -4,13 +4,16 @@ import java.io.IOException;
 
 import net.sf.onioncoffee.Cell.CellType;
 
-import org.saintandreas.util.Loggable;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Brad Davis
  *
  */
-public abstract class CellSink extends Loggable{
+public abstract class CellSink {
     private long lastActionTime; // last time, a cell was send that was not a padding cell
     private long lastCellTime; // last time, a cell was send
     private long created;
@@ -28,6 +31,9 @@ public abstract class CellSink extends Loggable{
         doSendCell(c);
     }
 
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
+    }
 
     protected abstract void doSendCell(Cell c) throws IOException;
     public abstract void sendKeepAlive();

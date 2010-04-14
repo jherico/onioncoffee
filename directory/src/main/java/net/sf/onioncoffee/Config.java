@@ -17,9 +17,7 @@
  */
 package net.sf.onioncoffee;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
@@ -33,11 +31,15 @@ import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.sf.onioncoffee.common.RegexUtil;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTimeZone;
-import org.saintandreas.util.StringUtil;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 
 /**
  * used for global configuration - stuff
@@ -163,7 +165,7 @@ public class Config {
     }
 
     private static int parseInt(String config, String name, int myDefault) {
-        int x = Integer.parseInt(StringUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\d+)", Integer.toString(myDefault)));
+        int x = Integer.parseInt(RegexUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\d+)", Integer.toString(myDefault)));
         LOG.trace("Config.parseInt: Parsed '" + name + "' as '" + x + "'");
         return x;
     }
@@ -177,7 +179,7 @@ public class Config {
     }
 
     private static float parseFloat(String config, String name, float myDefault, float lower, float upper) {
-        float x = Float.parseFloat(StringUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+([0-9.]+)", Float.toString(myDefault)));
+        float x = Float.parseFloat(RegexUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+([0-9.]+)", Float.toString(myDefault)));
         if (x < lower) {
             x = lower;
         }
@@ -189,7 +191,7 @@ public class Config {
     }
 
     private static String parseString(String config, String name, String myDefault) {
-        String x = StringUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\S.*?)$", myDefault);
+        String x = RegexUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\S.*?)$", myDefault);
         LOG.trace("Config.parseString: Parsed '" + name + "' as '" + x + "'");
         return x;
     }
@@ -203,7 +205,7 @@ public class Config {
         if (myDefault) {
             mydef = "true";
         }
-        String x = StringUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\S.*?)$", mydef).trim();
+        String x = RegexUtil.parseStringByRE(config, "^\\s*" + replaceSpaceWithSpaceRegExp(name) + "\\s+(\\S.*?)$", mydef).trim();
         boolean ret = false;
         if (x.equals("1") || x.equalsIgnoreCase("true") || x.equalsIgnoreCase("yes")) {
             ret = true;
@@ -226,10 +228,7 @@ public class Config {
         try {
             String config = "";
             if (filename != null) {
-                DataInputStream sin = new DataInputStream(new FileInputStream(new File(filename)));
-                // DataInputStream sin = new
-                // DataInputStream(ClassLoader.getSystemResourceAsStream(filename));
-                config = StringUtil.read(sin);
+                config = Files.toString(new File(filename), Charsets.UTF_8);
                 LOG.trace("Config.readFromConfig(): " + config);
             }
             // security parameters

@@ -14,7 +14,15 @@ public abstract class SocketProxy extends StreamProxy implements Runnable {
         this.listenPort = port;
         this.executor = executor;
     }
-    
+    public static void safeClose(Socket s) {
+        if (s != null) {
+            try {
+              s.close();  
+            } catch (IOException e) {
+                // swallow
+            }
+        }
+    }
 
     @Override
     public void run() {

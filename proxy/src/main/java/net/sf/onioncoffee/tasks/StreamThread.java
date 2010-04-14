@@ -1,11 +1,12 @@
 package net.sf.onioncoffee.tasks;
 
+
 import net.sf.onioncoffee.Circuit;
 import net.sf.onioncoffee.TCPStream;
 import net.sf.onioncoffee.TCPStreamProperties;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -14,7 +15,7 @@ import org.apache.commons.logging.LogFactory;
  * @author Lexi
  */
 public class StreamThread extends Thread {
-    private static final Log LOG = LogFactory.getLog(StreamThread.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamThread.class);
 
     public TCPStream stream;
     Circuit cs;

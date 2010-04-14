@@ -26,7 +26,8 @@ import net.sf.onioncoffee.common.AESCounterMode;
 import net.sf.onioncoffee.common.Encryption;
 import net.sf.onioncoffee.common.TorException;
 
-import org.saintandreas.util.Loggable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * represents a server as part of a specific circuit. Stores the additional data
@@ -36,7 +37,7 @@ import org.saintandreas.util.Loggable;
  * @author Lexi Pimenidis
  * @author Tobias Koelsch
  */
-public class CircuitNode extends Loggable {
+public class CircuitNode  {
     // The SKIP 1024 bit modulus
     static final BigInteger DH_P = new BigInteger("00FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08" + //
             "8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B" + //
@@ -122,6 +123,10 @@ public class CircuitNode extends Loggable {
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
     }
 
     /**

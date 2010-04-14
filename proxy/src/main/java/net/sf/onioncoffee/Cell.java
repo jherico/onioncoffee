@@ -23,7 +23,10 @@ import java.util.Map;
 
 import net.sf.onioncoffee.common.Encoding;
 
-import org.saintandreas.util.Loggable;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * most general form of the cells in the Tor protocol. Should not be used on its
@@ -35,7 +38,7 @@ import org.saintandreas.util.Loggable;
  * @version unstable
  */
 
-public class Cell extends Loggable {
+public class Cell {
     public enum CellType {
         CELL_PADDING((byte)0, "padding"), 
         CELL_CREATE((byte)1, "create"), 
@@ -84,6 +87,9 @@ public class Cell extends Loggable {
     public final byte[] payload =  new byte[Cell.CELL_PAYLOAD_SIZE];
     public final int circuitId;
 
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
+    }
 
     Cell(Circuit outCircuit, int circuitId, CellType command) {
         this.command = command;

@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
-import org.saintandreas.util.StringUtil;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
@@ -325,10 +324,10 @@ public class Encoding {
         z = hostname;
         z = z.replaceFirst(".onion", "");
 
-        x = StringUtil.parseStringByRE(z, "(.*?)\\.", "");
+        x = RegexUtil.parseStringByRE(z, "(.*?)\\.", "");
         z = z.replaceFirst(x + "\\.", "");
 
-        y = StringUtil.parseStringByRE(z, "(.*?)\\.", "");
+        y = RegexUtil.parseStringByRE(z, "(.*?)\\.", "");
         z = z.replaceFirst(y + "\\.", "");
 
         if (y == "") {
@@ -346,7 +345,7 @@ public class Encoding {
 
 
     public static byte[] extractBase64Data(String s) {
-        return Base64.decodeBase64(StringUtil.parseStringByRE(s, "-----BEGIN .*?-----(.*?)-----END .*?-----", null).getBytes());
+        return Base64.decodeBase64(RegexUtil.parseStringByRE(s, "-----BEGIN .*?-----(.*?)-----END .*?-----", null).getBytes());
     }
 
     /**

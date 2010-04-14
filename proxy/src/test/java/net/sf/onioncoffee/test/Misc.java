@@ -1,5 +1,6 @@
 package net.sf.onioncoffee.test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
@@ -9,12 +10,13 @@ import java.util.regex.Pattern;
 import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.RegexUtil;
 
-import org.saintandreas.util.StringUtil;
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 
 public class Misc {
 
     public static void findUniqueFlags() throws IOException {
-        String desc = StringUtil.readFromFile("C:\\Documents and Settings\\bdavis\\.jtor\\consensus");
+        String desc = Files.toString(new File("C:\\Documents and Settings\\bdavis\\.jtor\\consensus"), Charsets.UTF_8);
         Pattern p = Pattern.compile("^s (.*?)$", RegexUtil.REGEX_MULTILINE_FLAGS);
         Matcher m = p.matcher(desc);
         Set<String> flags = new HashSet<String>();

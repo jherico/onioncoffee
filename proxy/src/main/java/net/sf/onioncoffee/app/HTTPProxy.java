@@ -27,7 +27,8 @@ import org.apache.http.message.BasicRequestLine;
 import org.apache.http.message.BasicStatusLine;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
-import org.saintandreas.util.SocketUtil;
+
+import com.google.common.io.Closeables;
 
 public class HTTPProxy extends SocketProxy {
 	protected SocketFactory remoteSocketFactory = null;
@@ -178,14 +179,15 @@ public class HTTPProxy extends SocketProxy {
                         localConnection.flush();
                     } 
                 } finally {
-                    SocketUtil.safeClose(remote);
+                    Closeables.closeQuietly(remote);
+                    safeClose(remote);
                 }
             } catch (Exception e) {
             	System.out.println(e);
             	e.printStackTrace();
             	System.out.println(remoteHost + ":" + remotePort + " " + remotePath);
             } finally {
-                SocketUtil.safeClose(local);
+                safeClose(local);
             }
             Thread.currentThread().setName("Idle");
         }

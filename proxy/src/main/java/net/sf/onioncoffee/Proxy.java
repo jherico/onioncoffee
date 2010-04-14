@@ -28,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 import javax.net.SocketFactory;
 
 import net.sf.onioncoffee.Server.Flag;
+import net.sf.onioncoffee.common.RegexUtil;
 import net.sf.onioncoffee.common.TorException;
 import net.sf.onioncoffee.tasks.ClosingThread;
 import net.sf.onioncoffee.tasks.StreamThread;
@@ -42,8 +43,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.mina.core.service.IoProcessor;
 import org.apache.mina.transport.socket.nio.NioProcessor;
 import org.apache.mina.transport.socket.nio.NioSession;
-import org.saintandreas.util.StringUtil;
-import org.saintandreas.util.ThreadUtil;
 
 public class Proxy extends SocketFactory {
     // general multiplicator for time
@@ -376,7 +375,7 @@ public class Proxy extends SocketFactory {
      */
     public Set<String> getRelatedNodes(Server s) {
         Set<String> excludedServers = new HashSet<String>();
-        String ipClassCString = StringUtil.parseStringByRE(s.getAddress().getHostAddress(), "(.*)\\.", "");
+        String ipClassCString = RegexUtil.parseStringByRE(s.getAddress().getHostAddress(), "(.*)\\.", "");
         if (Config.route_uniq_class_c && addressNeighbours.containsKey(ipClassCString)) {
             excludedServers.addAll(addressNeighbours.get(ipClassCString));
         } else {
@@ -403,7 +402,7 @@ public class Proxy extends SocketFactory {
                 excludedNodesByConfig.add(server.getKey());
             }
             // add it to the addressNeighbours
-            String key = StringUtil.parseStringByRE(server.getAddress().getHostAddress(), "(.*)\\.", "");
+            String key = RegexUtil.parseStringByRE(server.getAddress().getHostAddress(), "(.*)\\.", "");
             lazyAddressMap.get(key).add(server.getKey());
             // add it to the country neighbours
             key = server.countryCode;
@@ -847,7 +846,7 @@ public class Proxy extends SocketFactory {
                         if (!atLeastOneAlive) {
                             break;
                         }
-                        ThreadUtil.safeSleep(10);
+//                        ThreadUtil.safeSleep(10);
                         --waitingCounter;
                     }
                     // return one and close others

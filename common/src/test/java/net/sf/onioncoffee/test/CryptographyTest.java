@@ -17,16 +17,19 @@ import javax.crypto.KeyGenerator;
 
 import net.sf.onioncoffee.common.AESCounterMode;
 import net.sf.onioncoffee.common.Encryption;
+import net.sf.onioncoffee.common.RegexUtil;
 
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
-import org.saintandreas.util.StringUtil;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Resources;
 
 public class CryptographyTest {
     private static final byte[] data; 
     static {
         try {
-            data = StringUtil.readFromResource("/example.txt").getBytes();
+            data = Resources.toByteArray(Resources.getResource("/example.txt"));
         } catch (IOException e) {
             throw new RuntimeException();
         }
@@ -51,11 +54,11 @@ public class CryptographyTest {
 
     @Test
     public void testRSAKeyExtractionAndSignatureVerification() throws IOException {
-        String serverDescriptor = StringUtil.readFromResource("/examples/server.txt").replaceAll("\r\n", "\n");
-        String publicKeyString = StringUtil.parseStringByRE(serverDescriptor, "signing-key\\s*(-----BEGIN RSA PUBLIC KEY-----.*?-----END RSA PUBLIC KEY-----)", "");
+        String serverDescriptor = Resources.toString(Resources.getResource("/examples/server.txt"), Charsets.UTF_8).replaceAll("\r\n", "\n");
+        String publicKeyString = RegexUtil.parseStringByRE(serverDescriptor, "signing-key\\s*(-----BEGIN RSA PUBLIC KEY-----.*?-----END RSA PUBLIC KEY-----)", "");
         PublicKey publicKey = Encryption.extractRSAKey(publicKeyString);
-        String body = StringUtil.parseStringByRE(serverDescriptor, "(router .*?)-----BEGIN SIGNATURE-----", "");
-        String sigString = StringUtil.parseStringByRE(serverDescriptor, "router .*?-----BEGIN SIGNATURE-----(.*?)-----END SIGNATURE-----", "");
+        String body = RegexUtil.parseStringByRE(serverDescriptor, "(router .*?)-----BEGIN SIGNATURE-----", "");
+        String sigString = RegexUtil.parseStringByRE(serverDescriptor, "router .*?-----BEGIN SIGNATURE-----(.*?)-----END SIGNATURE-----", "");
         assertTrue(Encryption.verifySignature(Base64.decodeBase64(sigString.getBytes()), publicKey, body.getBytes()));
     }
 

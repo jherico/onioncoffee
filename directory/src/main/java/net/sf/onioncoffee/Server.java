@@ -24,9 +24,10 @@ import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.Encryption;
 import net.sf.onioncoffee.common.RegexUtil;
 
+import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogConfigurationException;
-import org.saintandreas.util.Loggable;
-import org.saintandreas.util.StringUtil;
+import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * @author Michael Koellejan
  * @version unstable
  */
-public class Server extends Loggable {
+public class Server  {
     private static final String ROUTER_REGEX = "r (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\d+) (\\d+)\\s*\ns ([a-z0-9 ]+)?";
     // FIXME ??? por que?
     private static final int MAX_EXITPOLICY_ITEMS = 300;
@@ -114,6 +115,7 @@ public class Server extends Loggable {
 
     private int circuitCount = 0;
 
+    
     public static class ConsensusComparator implements Comparator<Server> {
         public int compare(Server o1, Server o2) {
             int retVal = 0 - Integer.valueOf(o1.flags & 0xff00).compareTo(Integer.valueOf(o2.flags & 0xff00));
@@ -125,6 +127,10 @@ public class Server extends Loggable {
             }
             return retVal;
         }
+    }
+
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
     }
 
     public Server() {
@@ -333,22 +339,22 @@ public class Server extends Loggable {
         this.routerPort = Integer.valueOf(m.group(3));
         this.dirPort = Integer.valueOf(m.group(5));
 
-        String dateStr = StringUtil.parseStringByRE(descriptor, "^published (.*?)$", "");
+        String dateStr = RegexUtil.parseStringByRE(descriptor, "^published (.*?)$", "");
         Date date = new SimpleDateFormat(Constants.PUBLISHED_ITEM_SIMPLEDATE_FORMAT).parse(dateStr, new ParsePosition(0));
         if (!date.equals(getPublished())) {
             return false;
         }
 
-        String fingerprint = Encoding.toHexStringNoColon(Encoding.parseHex(StringUtil.parseStringByRE(descriptor, "^opt fingerprint (.*?)$", "")));
+        String fingerprint = Encoding.toHexStringNoColon(Encoding.parseHex(RegexUtil.parseStringByRE(descriptor, "^opt fingerprint (.*?)$", "")));
         fingerprint = fingerprint.toLowerCase().replaceAll("\\s", "");
         if (!fingerprint.equals(getFingerprint())) {
             throw new RuntimeException("Fingerprint match failure");
         }
 
         socksPort = Integer.parseInt(m.group(4));
-        platform = StringUtil.parseStringByRE(descriptor, "^platform (.*?)$", "unknown");
-        uptime = Integer.parseInt(StringUtil.parseStringByRE(descriptor, "^uptime (\\d+)", "0"));
-        contact = StringUtil.parseStringByRE(descriptor, "^contact (.*?)$", "");
+        platform = RegexUtil.parseStringByRE(descriptor, "^platform (.*?)$", "unknown");
+        uptime = Integer.parseInt(RegexUtil.parseStringByRE(descriptor, "^uptime (\\d+)", "0"));
+        contact = RegexUtil.parseStringByRE(descriptor, "^contact (.*?)$", "");
 
         // bandwidth
         p = Pattern.compile("^bandwidth (\\d+) (\\d+) (\\d+)?", Pattern.DOTALL + Pattern.MULTILINE + Pattern.CASE_INSENSITIVE + Pattern.UNIX_LINES);
@@ -368,11 +374,11 @@ public class Server extends Loggable {
         }
 
         // onion key
-        String stringOnionKey = StringUtil.parseStringByRE(descriptor, "^onion-key\n(.*?END RSA PUBLIC KEY......)", "");
+        String stringOnionKey = RegexUtil.parseStringByRE(descriptor, "^onion-key\n(.*?END RSA PUBLIC KEY......)", "");
         onionKey = Encryption.extractRSAKey(stringOnionKey);
 
         // signing key
-        String stringSigningKey = StringUtil.parseStringByRE(descriptor, "^signing-key\n(.*?END RSA PUBLIC KEY-----\n)", "");
+        String stringSigningKey = RegexUtil.parseStringByRE(descriptor, "^signing-key\n(.*?END RSA PUBLIC KEY-----\n)", "");
         signingKey = Encryption.extractRSAKey(stringSigningKey);
 
         // verify signing-key against digest
@@ -384,9 +390,9 @@ public class Server extends Loggable {
         }
 
         // parse family
-        String stringFamily = StringUtil.parseStringByRE(descriptor, "^family (.*?)$", "");
+        String stringFamily = RegexUtil.parseStringByRE(descriptor, "^family (.*?)$", "");
         if ("".equals(stringFamily)) {
-            stringFamily = StringUtil.parseStringByRE(descriptor, "^opt family (.*?)$", "");
+            stringFamily = RegexUtil.parseStringByRE(descriptor, "^opt family (.*?)$", "");
         }
         Pattern p_family = Pattern.compile("(\\S+)");
         Matcher m_family = p_family.matcher(stringFamily);
@@ -396,8 +402,8 @@ public class Server extends Loggable {
         }
 
         // check the validity of the signature
-        routerSignature = Encoding.parseBase64(StringUtil.parseStringByRE(descriptor, "^router-signature\n-----BEGIN SIGNATURE-----(.*?)-----END SIGNATURE-----", ""));
-        byte[] sha1_input = (StringUtil.parseStringByRE(descriptor, "^(router .*?router-signature\n)", "")).getBytes();
+        routerSignature = Encoding.parseBase64(RegexUtil.parseStringByRE(descriptor, "^router-signature\n-----BEGIN SIGNATURE-----(.*?)-----END SIGNATURE-----", ""));
+        byte[] sha1_input = (RegexUtil.parseStringByRE(descriptor, "^(router .*?router-signature\n)", "")).getBytes();
         if (!Encryption.verifySignature(routerSignature, signingKey, sha1_input)) {
             LoggerFactory.getLogger(Server.class).warn("Server -> router-signature check failed for " + getName());
             throw new IllegalStateException("Server " + getName() + ": description signature verification failed");

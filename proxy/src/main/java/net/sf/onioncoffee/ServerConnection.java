@@ -9,7 +9,6 @@ import java.util.Random;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
 import net.sf.onioncoffee.common.TorException;
@@ -19,27 +18,27 @@ import org.apache.mina.core.future.ConnectFuture;
 import org.apache.mina.core.service.IoHandlerAdapter;
 import org.apache.mina.core.service.IoProcessor;
 import org.apache.mina.core.session.IoSession;
-import org.apache.mina.example.echoserver.ssl.BogusSslContextFactory;
 import org.apache.mina.filter.ssl.SslFilter;
-import org.apache.mina.transport.socket.nio.NioProcessor;
 import org.apache.mina.transport.socket.nio.NioSession;
 import org.apache.mina.transport.socket.nio.NioSocketConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ServerConnection extends IoHandlerAdapter {
-    private static final String[] ENABLED_SUITES = { "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA" };
-    private static SSLSocketFactory SOCKET_FACTORY; {
+    private static final String[] ENABLED_SUITES = { 
+        "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA",  //
+        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA"  //
+    };
+    private static SSLContext SSL_CONTEXT; {
         try {
             TrustManager[] TRUST_MANAGERS = { new TorX509TrustManager() };
-            SSLContext context;
-            context = SSLContext.getInstance("TLS", "SunJSSE");
-            context.init(new KeyManager[] {}, TRUST_MANAGERS, null);
-            SOCKET_FACTORY = context.getSocketFactory();
+            SSL_CONTEXT = SSLContext.getInstance("TLS", "SunJSSE");
+            SSL_CONTEXT.init(new KeyManager[] {}, TRUST_MANAGERS, null);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
     }
+
 
     boolean stopped = false;
     boolean closed = false;
@@ -50,26 +49,18 @@ public class ServerConnection extends IoHandlerAdapter {
     
     public ServerConnection(Server server, IoProcessor<NioSession> procssor) throws IOException {
         this.server = server;
-        
 
         NioSocketConnector connector = new NioSocketConnector(procssor);
         connector.setConnectTimeoutMillis(30*1000L);
         connector.setHandler(this);
-        SslFilter sslFilter;
-        try {
-            sslFilter = new SslFilter(BogusSslContextFactory.getInstance(false));
-        } catch (GeneralSecurityException e) {
-            throw new IOException(e);
-        }
+        SslFilter sslFilter = new SslFilter(SSL_CONTEXT);
         sslFilter.setUseClientMode(true);
         sslFilter.setEnabledCipherSuites(ENABLED_SUITES);
         connector.getFilterChain().addLast("sslFilter", sslFilter);
         ConnectFuture cf = connector.connect(server.getRouterAddress());
         cf.awaitUninterruptibly();
         session = cf.getSession();
-        System.out.println();
     }
-
 
     public void close() {
         this.stopped = true;
@@ -92,15 +83,14 @@ public class ServerConnection extends IoHandlerAdapter {
                 getLog().trace("writing relay cell of type " + ((CellRelay)c).relayCommand + " to " + server.getName());
             }
         }
-        session.write(IoBuffer.wrap(c.toByteArray())).awaitUninterruptibly(1000 * 10);
-        
+        session.write(IoBuffer.wrap(c.toByteArray()));
     }
     
     private Logger getLog() {
         return LoggerFactory.getLogger(getClass());
     }
 
-    synchronized public int getFreeCircuitId() {
+    synchronized private int getFreeCircuitId() {
         if (closed) {
             throw new IllegalStateException("ServerConnection.assign_circID(): Connection to " + server.getName() + " is closed for new circuits");
         }
@@ -175,11 +165,12 @@ public class ServerConnection extends IoHandlerAdapter {
     public void messageReceived(IoSession session, Object message) throws IOException {
         IoBuffer iobuffer = (IoBuffer) message;
         if (iobuffer.remaining() % Cell.CELL_TOTAL_SIZE != 0) {
-            System.out.println();
+            getLog().warn("Partial block found " + iobuffer.remaining());
         }
         
         // complete any previous partial buffer
         if (cellbufferfilled != 0) {
+            getLog().warn("previous incomplete cell found " + cellbufferfilled);
             int fillSize = Math.min(Cell.CELL_TOTAL_SIZE - cellbufferfilled, iobuffer.remaining());
             iobuffer.get(cellbuffer, cellbufferfilled, fillSize);
             cellbufferfilled += fillSize;
@@ -189,6 +180,10 @@ public class ServerConnection extends IoHandlerAdapter {
             }
         }
         
+        if (iobuffer.position() != 0 && iobuffer.remaining() >= Cell.CELL_TOTAL_SIZE){
+            getLog().warn("reading next cell after incomplete cell found " + iobuffer.position());
+        }
+
         // grab any complete cells in the packet
         while ((iobuffer.remaining()) >= Cell.CELL_TOTAL_SIZE) {
             iobuffer.get(cellbuffer);
@@ -197,10 +192,13 @@ public class ServerConnection extends IoHandlerAdapter {
         
         // buffer any leftover bytes for the next incoming message
         if ((iobuffer.remaining()) > 0) {
+            getLog().warn("leftover bytes found " + iobuffer.remaining());
             cellbufferfilled = iobuffer.remaining();
             iobuffer.get(cellbuffer, 0, cellbufferfilled);
+            assert(0 == iobuffer.remaining());
         }
     }
+    
 
     private void onCell(Cell cell) {
         if (getLog().isTraceEnabled()) {

@@ -1,11 +1,6 @@
 package net.sf.onioncoffee;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,23 +12,16 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
+import net.sf.onioncoffee.common.Cache;
+import net.sf.onioncoffee.common.SimpleFileCache;
+
 import org.apache.commons.collections15.CollectionUtils;
-import org.apache.commons.logging.LogFactory;
-import org.apache.http.HttpException;
-import org.apache.http.HttpMessage;
-import org.apache.http.StatusLine;
-import org.apache.http.impl.DefaultHttpResponseFactory;
-import org.apache.http.impl.nio.codecs.HttpResponseParser;
-import org.apache.http.impl.nio.reactor.SessionInputBufferImpl;
-import org.apache.http.message.BasicHttpResponse;
-import org.apache.http.message.BasicLineParser;
-import org.apache.http.nio.reactor.SessionInputBuffer;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
-import org.saintandreas.nio.BufferingSocketHandler;
-import org.saintandreas.nio.IOProcessor;
-import org.saintandreas.util.Cache;
-import org.saintandreas.util.SimpleFileCache;
+import org.eclipse.jetty.client.Address;
+import org.eclipse.jetty.client.ContentExchange;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
 public class RefreshableDirectory extends Directory {
     private static final int MAX_CONCURRENT_REQUESTS = 20;
@@ -43,9 +31,9 @@ public class RefreshableDirectory extends Directory {
     private static final String SERVER_KEY_PREFIX = "/servers";
 
     private final ExecutorService executor;
-    private final Selector selector;
     private final Cache<String, String> dataCache = new SimpleFileCache(Config.getConfigDirFile());
-    
+    private final HttpClient client = new HttpClient();
+
     public static String getPrefixPath(String name, int length) {
         StringBuilder buffer = new StringBuilder();
         length = Math.min(name.length(), length);
@@ -77,12 +65,16 @@ public class RefreshableDirectory extends Directory {
             parseConsensus(consensus);
         } 
 
-        this.executor = executor;
+        client.setConnectorType(HttpClient.CONNECTOR_SELECT_CHANNEL);
+        client.setMaxConnectionsPerAddress(200); // max 200 concurrent connections to every address
+        client.setThreadPool(new QueuedThreadPool(2)); // max 250 threads
+        client.setTimeout(30000); // 30 seconds timeout; if no server reply, the request expires
         try {
-            this.selector = SelectorProvider.provider().openSelector();
-        } catch (IOException e) {
+            client.start();
+        } catch (Exception e) {
             throw new RuntimeException(e);
-        }
+        }    
+        this.executor = executor;
         this.executor.submit(new RefreshThread());
     }
 
@@ -124,13 +116,6 @@ public class RefreshableDirectory extends Directory {
                 this.type = RequestType.Server;
             }
 
-            public void grabResult(SessionInputBuffer inputBuffer) {
-                ByteBuffer output = ByteBuffer.allocate(inputBuffer.length());
-                inputBuffer.read(output);
-                result = new String(output.array());
-                finished = true;
-            }
-
             public void finish() throws IOException {
                 if (type == RequestType.Consensus) {
                     dataCache.cacheItem(CONSENSUS_KEY, result);
@@ -164,108 +149,73 @@ public class RefreshableDirectory extends Directory {
         }
 
 
-        private class DirectoryConnection extends BufferingSocketHandler {
+        private class DirectoryConnection extends ContentExchange {
             public final Server server;
-            public final SocketChannel sc;
             public DirectoryRequest currentRequest;
             public final long initTime = System.currentTimeMillis();
-            public final SessionInputBuffer inputBuffer = new SessionInputBufferImpl(8192, 1024, params);
+            
 
             public DirectoryConnection(Server targetServer, DirectoryRequest request) throws IOException {
-                this.timeoutValue = 1000 * 10;
                 this.server = targetServer;
-                sc = SocketChannel.open();
-                sc.configureBlocking(false);
-                this.desiredMask = SelectionKey.OP_CONNECT;
-                sc.register(selector, SelectionKey.OP_CONNECT, this);
-                sc.socket().setSoTimeout(5 * 1000);
-                sc.connect(server.getDirAddress());
                 currentRequest = request;
-                currentRequest.servicingConnections.add(this);
+                synchronized (currentRequest.servicingConnections) {
+                    currentRequest.servicingConnections.add(this);
+                }
+                setAddress(new Address(targetServer.getHostname(), targetServer.getDirPort()));
+                setURI(currentRequest.url());
+                client.send(this);
             }
+
 
             public long age() {
                 return System.currentTimeMillis() - initTime;
             }
-
-            @Override
-            public void onConnect(SelectionKey sk) throws IOException {
-                super.onConnect(sk);
-                if (currentRequest.finished) {
-                    synchronized (pendingRequests) {
-                        for (DirectoryRequest request : pendingRequests) {
-                            if (!request.finished) {
-                                currentRequest = request;
-                                break;
-                            }
-                        }
-                    }
-                }
-//                getLog().debug("Requesting " + server.getHostname() + ":" + server.getDirPort() + currentRequest.url() );
-                write("GET " + currentRequest.url() + " HTTP/1.1\r\n\r\n");
-            }
-
-            public void onRead(SelectionKey sk) throws IOException {
-                int read = inputBuffer.fill(sc);
-                while (0 != read && -1 != read) {
-                    lastActivityTime = System.currentTimeMillis();
-                    read = inputBuffer.fill(sc);
-                }
-                if (-1 == read) {
-                    sk.cancel();
-                    onEof();
+            
+            protected void onResponseComplete() throws IOException
+            {
+                int status = getResponseStatus();
+                if (status == 200) {
+                  dirConns.remove(this);
+                  goodServers.add(server.fingerprint);
+                  if (currentRequest.finished) {
+                      return;
+                  }
+                  synchronized (pendingRequests) {
+                      pendingRequests.remove(currentRequest);
+                  }
+                  currentRequest.result = this.getResponseContent();
+                  currentRequest.finished = true;
+                  currentRequest.finish();
+                } else {
+                    fail(status);
                 }
             }
-
-            @SuppressWarnings("unused")
-            protected void onEof() throws IOException {
-                dirConns.remove(this);
-                try {
-                    BasicLineParser lineParser = new BasicLineParser();
-                    HttpResponseParser parser = new HttpResponseParser(inputBuffer, lineParser, new DefaultHttpResponseFactory(), params);
-                    BasicHttpResponse message = (BasicHttpResponse) parser.parse();
-                    StatusLine status = message.getStatusLine();
-                    if (status.getStatusCode() != 200) {
-                        ++currentRequest.tries;
-                        serverFaults.put(server.getFingerprint(), new ServerFault(ServerFaultType.BadResponse, this, status));
-                     } else {
-                         goodServers.add(server.fingerprint);
-                        if (currentRequest.finished) {
-                            return;
-                        }
-                        synchronized (pendingRequests) {
-                            pendingRequests.remove(currentRequest);
-                        }
-                        HttpMessage response = parser.parse();
-                        currentRequest.grabResult(inputBuffer);
-                        currentRequest.finish();
-                    }
-                    sc.close();
-                } catch (HttpException e) {
-                    throw new IOException(e);
+            
+            protected void fail(Object cause) {
+                synchronized (currentRequest.servicingConnections) {
+                    currentRequest.servicingConnections.remove(this);
                 }
-            }
-
-            @Override
-            public SocketChannel getSocketChannel() {
-                return sc;
-            }
-
-            @Override
-            protected Selector getSelector() {
-                return selector;
-            }
-
-            @Override
-            public void onException(IOException e) {
-                super.onException(e);
                 dirConns.remove(this);
                 ++currentRequest.tries;
-                serverFaults.put(server.getFingerprint(), new ServerFault(ServerFaultType.BadResponse, this, e));
+                serverFaults.put(server.getFingerprint(), new ServerFault(ServerFaultType.BadResponse, this, cause));
+            }
+            
+            protected void onConnectionFailed(Throwable x) {
+                super.onConnectionFailed(x);
+                fail(x);
+            }
+
+            protected void onException(Throwable x) {
+                super.onException(x);
+                fail(x);
+            }
+
+            protected void onExpire() {
+                super.onExpire();
+                fail("timeout");
             }
         }
-
-
+        
         private Server findConnectableServer() {
             Server retVal = null;
             Set<String> currentConns = new HashSet<String>();
@@ -273,11 +223,12 @@ public class RefreshableDirectory extends Directory {
                 currentConns.add(dirConn.server.fingerprint);
             }
             
-            Set<String> goodConns = new HashSet<String>(goodServers);
+            List<String> goodConns = new ArrayList<String>(goodServers);
             goodConns.removeAll(currentConns);
             // use a previously reliable connection
             if (!goodConns.isEmpty()) {
-                retVal = getServers().get(goodConns.iterator().next());
+                String selectedFingerprint = goodConns.get(new Random().nextInt(goodConns.size()));
+                retVal = getServers().get(selectedFingerprint);
             } 
             
             if (retVal == null) {
@@ -325,7 +276,7 @@ public class RefreshableDirectory extends Directory {
         }
 
         private void refreshConsensus() {
-            if (getFreshUntil().isBeforeNow() && getConsensusAge() > 1000 * 60 * 30) {
+            if (getValidUntil().isBeforeNow() || (getFreshUntil().isBeforeNow() && getConsensusAge() > 1000 * 60 * 30)) {
                 boolean activeRequest = false;
                 for (DirectoryRequest req : pendingRequests) {
                     if (RequestType.Consensus == req.type) {
@@ -341,7 +292,6 @@ public class RefreshableDirectory extends Directory {
         
         private void refreshServers() {
             Set<String> pendingServers = getInvalidServers();
-
             for (DirectoryRequest req : pendingRequests) {
                 if (req.type == RequestType.Server) {
                     pendingServers.remove(req.server.getFingerprint());
@@ -370,7 +320,6 @@ public class RefreshableDirectory extends Directory {
                     refreshConsensus();
                     refreshServers();
                     openConnections();
-                    IOProcessor.reactor(selector);
                     cleanExceptionMap();
                     Thread.sleep(100);
                 } catch (Exception e) {

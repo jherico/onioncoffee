@@ -21,24 +21,26 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
-
-import org.saintandreas.util.CryptoUtil;
 
 import com.chaosinmotion.asn1.BerInputStream;
 import com.chaosinmotion.asn1.BerOutputStream;
 import com.chaosinmotion.asn1.Tag;
+import com.google.common.base.Charsets;
 
 /**
  * this class contains utility functions concerning encryption
@@ -74,7 +76,7 @@ public class Encryption {
      */
     public static boolean verifySignature(byte[] signature, PublicKey signingKey, byte[] data) {
         try {
-            return CryptoUtil.verifySignature(PK_ALGORITHM, HASH_ALGORITHM, signature, signingKey, data);
+            return verifySignature(PK_ALGORITHM, HASH_ALGORITHM, signature, signingKey, data);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
@@ -82,7 +84,7 @@ public class Encryption {
     
     public static byte[] getHash(byte[] input) {
         try {
-            return CryptoUtil.getHash(HASH_ALGORITHM, input);
+            return getHash(HASH_ALGORITHM, input);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
@@ -100,7 +102,7 @@ public class Encryption {
      */
     public static byte[] signData(byte[] data, PrivateKey signingKey) {
         try {
-            return CryptoUtil.signData(PK_ALGORITHM, HASH_ALGORITHM, data, signingKey);
+            return signData(PK_ALGORITHM, HASH_ALGORITHM, data, signingKey);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
@@ -210,6 +212,38 @@ public class Encryption {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    /**
+     * returns the SHA-1 hash of the input
+     * 
+     */
+    public static byte[] getHash(String algorithm, byte[] input) throws GeneralSecurityException {
+        MessageDigest sha = MessageDigest.getInstance(algorithm);
+        sha.reset();
+        sha.update(input, 0, input.length);
+        return sha.digest();
+    }
+
+    public static byte[] getHash(String algorithm, String input) throws GeneralSecurityException {
+        return getHash(algorithm, input, Charsets.UTF_8);
+    }
+
+    public static byte[] getHash(String algorithm, String input, Charset charset) throws GeneralSecurityException {
+        return getHash(algorithm, input.getBytes(charset));
+    }
+
+    public static boolean verifySignature(String cipherName, String hashName, byte[] signature, PublicKey signingKey, byte[] data) throws GeneralSecurityException { 
+        Cipher cipher = Cipher.getInstance(cipherName);
+        cipher.init(Cipher.DECRYPT_MODE, signingKey);
+        return Arrays.equals(cipher.doFinal(signature), getHash(hashName, data));
+    }
+
+    public static byte[] signData(String cipherName, String hashName, byte[] data, PrivateKey signingKey) throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance(cipherName);
+        cipher.init(Cipher.ENCRYPT_MODE, signingKey);
+        return cipher.doFinal(getHash(hashName, data));
     }
 
 }

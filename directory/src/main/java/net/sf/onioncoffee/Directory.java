@@ -34,11 +34,13 @@ import java.util.regex.Pattern;
 import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.RegexUtil;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
-import org.saintandreas.util.Loggable;
-import org.saintandreas.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class maintains a list of the currently known Tor routers. It is primarily concerned with the 
@@ -52,7 +54,7 @@ import org.saintandreas.util.StringUtil;
  * @author Johannes Renner
  * 
  */
-public class Directory extends Loggable {
+public class Directory {
     private static final String ROUTER_REGEX = "(^r .+?\ns .+?\nv .+?\nw .+?\np .+?\n)";
     private static final String DIR_SOURCE_REGEX = "^dir-source (\\S+) (\\S+) (\\S+) (\\S+) (\\d+) (\\d+)\\s*\ncontact (.+)\nvote-digest (\\S+)";
     private static final String DIR_SIG_REGEX = "^directory-signature (\\S+) (\\S+)\\s*\n-----BEGIN SIGNATURE-----\n(.*?)-----END SIGNATURE";
@@ -66,6 +68,10 @@ public class Directory extends Loggable {
     private DateTime validAfter = new DateTime(0);
     private DateTime freshUntil = new DateTime(0);
     private long consensusLastUpdate = 0;
+
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
+    }
 
     public boolean isFresh() {
         return (new DateTime().isBefore(freshUntil));
@@ -116,7 +122,7 @@ public class Directory extends Loggable {
         Pattern p;
         Matcher m;
         // Check the version
-        String version = StringUtil.parseStringByRE(consensus, "^network-status-version (\\d+)", "");
+        String version = RegexUtil.parseStringByRE(consensus, "^network-status-version (\\d+)", "");
         if (!"3".equals(version)) {
             throw new IllegalStateException("wrong network status version");
         }

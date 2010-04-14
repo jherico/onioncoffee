@@ -1,6 +1,8 @@
 package net.sf.onioncoffee.tasks;
 
-import org.saintandreas.util.LoggableThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 
 /**
@@ -10,10 +12,13 @@ import org.saintandreas.util.LoggableThread;
  * 
  * @author Lexi
  */
-public class ClosingThread extends LoggableThread {
+public class ClosingThread  extends Thread {
 
     StreamThread[] threads;
     int chosenOne;
+    protected Logger getLog() {
+        return LoggerFactory.getLogger(getClass());
+    }
 
     public ClosingThread(StreamThread[] threads, int chosenOne) {
         this.threads = threads;

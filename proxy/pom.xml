@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>net.sf.onioncoffee</groupId>
@@ -8,7 +9,6 @@
   <groupId>net.sf.onioncoffee</groupId>
   <artifactId>proxy</artifactId>
   <properties>
-    <hc.version>4.1-alpha1</hc.version>
   </properties>
   <dependencies>
     <dependency>
@@ -16,8 +16,6 @@
       <artifactId>common</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
-    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>directory</artifactId>
@@ -26,50 +24,23 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
-      <version>7.0.1.v20091125</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-client</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.mina</groupId>
-      <artifactId>mina-example</artifactId>
-      <version>2.0.0-RC1</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google</groupId>
-      <artifactId>guava</artifactId>
-      <version>0.1-SNAPSHOT</version>
+      <artifactId>mina-core</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore-nio</artifactId>
-      <version>${hc.version}</version>
+      <artifactId>httpcore</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <version>${hc.version}</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>[1,2)</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>[1,2)</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-    	<groupId>org.eclipse.swt.win32.win32</groupId>
-    	<artifactId>x86</artifactId>
-    	<version>3.3.0-v3346</version>
+      <groupId>org.eclipse.swt.win32.win32</groupId>
+      <artifactId>x86</artifactId>
+      <version>3.3.0-v3346</version>
     </dependency>
   </dependencies>
 </project>

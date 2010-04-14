@@ -28,8 +28,7 @@ import net.sf.onioncoffee.Proxy;
 import net.sf.onioncoffee.TCPStream;
 import net.sf.onioncoffee.TCPStreamProperties;
 
-import org.saintandreas.util.SocketUtil;
-import org.saintandreas.util.StreamUtil;
+import com.google.common.io.Closeables;
 
 class SocksProxy extends SocketProxy {
 
@@ -100,8 +99,8 @@ class SocksProxy extends SocketProxy {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             } finally{
-                SocketUtil.safeClose(local);
-                StreamUtil.safeClose(remote);
+                safeClose(local);
+                Closeables.closeQuietly(remote);
             }
         }
 

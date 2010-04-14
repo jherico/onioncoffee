@@ -1,10 +1,5 @@
 package net.sf.onioncoffee.app;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,8 +12,6 @@ import net.sf.onioncoffee.Server;
 import net.sf.onioncoffee.TCPStream;
 import net.sf.onioncoffee.TCPStreamProperties;
 
-import org.apache.http.nio.reactor.ConnectingIOReactor;
-import org.apache.http.nio.reactor.IOReactorException;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
@@ -36,13 +29,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
-import org.saintandreas.ui.swt.SwtUtil;
-import org.saintandreas.ui.swt.TableSizingControlAdapter;
-import org.saintandreas.ui.swt.TableUtil;
-import org.saintandreas.util.StringUtil;
-import org.saintandreas.util.ThreadUtil;
 
 import com.google.common.base.Charsets;
+import com.google.common.io.ByteStreams;
 
 public class SwtProxyApp extends Proxy {
     private static ResourceBundle RESOURCES = ResourceBundle.getBundle("SwtProxyApp");
@@ -58,7 +47,7 @@ public class SwtProxyApp extends Proxy {
     private Table circuitTable;
 
 
-    public SwtProxyApp() throws IOReactorException {
+    public SwtProxyApp() {
         SwtUtil.openSplash(display, "/images/tor_sticker.png", new SplashCallback());
         while (null == mainwindow || !mainwindow.isDisposed()) {
             if (!display.readAndDispatch()) {
@@ -78,7 +67,9 @@ public class SwtProxyApp extends Proxy {
             executor.submit(new DisplayUpdateThread());
             executor.submit(new HTTPProxy(8088, executor, SwtProxyApp.this));
             while (!directory.isValid()) {
-              ThreadUtil.safeSleep(200);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) { }
             }
             openMainWindow(display);
         }
@@ -89,7 +80,9 @@ public class SwtProxyApp extends Proxy {
         public void run() {
             Thread.currentThread().setName("Display Update Thread");
             while (!executor.isTerminated()) {
-                ThreadUtil.safeSleep(500);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) { }
                 Display.getDefault().syncExec(new Runnable() {
                     public void run() {
                         serverCount.setText(getServerCountString());
@@ -262,7 +255,7 @@ public class SwtProxyApp extends Proxy {
                                 TCPStream stream = proxyConnect(target);
                                 stream.getOutputStream().write(GET_STRING.getBytes(Charsets.US_ASCII));
                                 stream.getOutputStream().flush();
-                                String result = StringUtil.read(stream.getInputStream());
+                                String result = new String(ByteStreams.toByteArray(stream.getInputStream()), Charsets.UTF_8);
                                 System.out.println("SCORE: " + result.length());
                                 stream.close();
                             } catch (Exception e) {
