@@ -34,8 +34,6 @@ import java.util.regex.Pattern;
 import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.RegexUtil;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;

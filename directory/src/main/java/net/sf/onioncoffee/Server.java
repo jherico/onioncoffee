@@ -24,9 +24,7 @@ import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.Encryption;
 import net.sf.onioncoffee.common.RegexUtil;
 
-import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogConfigurationException;
-import org.apache.commons.logging.LogFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

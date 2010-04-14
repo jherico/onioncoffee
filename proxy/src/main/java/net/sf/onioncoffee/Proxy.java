@@ -223,14 +223,14 @@ public class Proxy extends SocketFactory {
 
     private class TorSocketImpl extends SocketImpl {
 
-        public static final int TOR_RETRIES_CONNECT_OPT = 1;
-        public static final int TOR_MAXIMUM_ROUTE_LEN = 2;
+//        public static final int TOR_RETRIES_CONNECT_OPT = 1;
+//        public static final int TOR_MAXIMUM_ROUTE_LEN = 2;
         TCPStream stream;
-        int retriesConnect;
+//        int retriesConnect;
         int maximumRouteLen;
 
         public TorSocketImpl() {
-            retriesConnect = Config.retriesConnect;
+//            retriesConnect = Config.retriesConnect;
             maximumRouteLen = 3;
         }
 

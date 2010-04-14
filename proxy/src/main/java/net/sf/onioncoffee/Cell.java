@@ -23,8 +23,6 @@ import java.util.Map;
 
 import net.sf.onioncoffee.common.Encoding;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

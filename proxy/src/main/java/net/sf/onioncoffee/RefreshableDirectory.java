@@ -2,6 +2,7 @@ package net.sf.onioncoffee;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -16,12 +17,12 @@ import net.sf.onioncoffee.common.Cache;
 import net.sf.onioncoffee.common.SimpleFileCache;
 
 import org.apache.commons.collections15.CollectionUtils;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpParams;
 import org.eclipse.jetty.client.Address;
 import org.eclipse.jetty.client.ContentExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
+
+import com.google.common.base.Joiner;
 
 public class RefreshableDirectory extends Directory {
     private static final int MAX_CONCURRENT_REQUESTS = 20;
@@ -46,7 +47,11 @@ public class RefreshableDirectory extends Directory {
     }
     
     public static String getServerKey(Server server) {
-        return SERVER_KEY_PREFIX + getPrefixPath(server.getFingerprint(), 4) + server.getKey();
+        return getServerKey(server.getKey());
+    }
+
+    public static String getServerKey(String server) {
+        return SERVER_KEY_PREFIX + getPrefixPath(server, 4) + server;
     }
 
     private enum RequestType {
@@ -84,11 +89,13 @@ public class RefreshableDirectory extends Directory {
         private final Map<String, ServerFault> serverFaults = new HashMap<String, ServerFault>();
         private final Set<String> goodServers = new HashSet<String>();
         private final Set<String> invalidServers = new HashSet<String>();
-        private final HttpParams params = new BasicHttpParams();
 
         private class ServerFault {
+            @SuppressWarnings("unused")
             public final ServerFaultType type;
+            @SuppressWarnings("unused")
             public final Object faultObject;
+            @SuppressWarnings("unused")
             public final DirectoryConnection conn;
             public final Long initTime = System.currentTimeMillis();
 
@@ -105,31 +112,32 @@ public class RefreshableDirectory extends Directory {
 
         private class DirectoryRequest {
             public final RequestType type;
-            public final Server server;
+            public final List<String> servers;
             public boolean finished = false;
             public String result;
             public int tries = 0;
             public LinkedList<DirectoryConnection> servicingConnections = new LinkedList<DirectoryConnection>();
 
-            public DirectoryRequest(Server server) {
-                this.server = server;
+            public DirectoryRequest(Collection<String> servers) {
+                this.servers = new ArrayList<String>(servers);
                 this.type = RequestType.Server;
             }
 
             public void finish() throws IOException {
                 if (type == RequestType.Consensus) {
+                    String result = null;
                     dataCache.cacheItem(CONSENSUS_KEY, result);
                     parseConsensus(result);
                 } else {
-                    dataCache.cacheItem(getServerKey(server), result);
-                    if (!parseServer(server, result)) {
-                        invalidServers.add(server.getFingerprint());
-                    }
+//                    dataCache.cacheItem(getServerKey(server), result);
+//                    if (!parseServer(server, result)) {
+//                        invalidServers.add(server.getFingerprint());
+//                    }
                 }
             }
             
             public DirectoryRequest() {
-                this.server = null;
+                this.servers = null;
                 this.type = RequestType.Consensus;
             }
 
@@ -140,10 +148,11 @@ public class RefreshableDirectory extends Directory {
             public String url() {
                 String retVal = null;
                 if (type == RequestType.Consensus) {
-                    retVal = "/tor/status-vote/current/consensus";
+                    retVal = "/tor/status-vote/current/consensus.z";
                 } else if (type == RequestType.Server) {
-                    retVal = "/tor/server/d/" + server.getDigest();
+                    retVal = "/tor/server/fp/" + Joiner.on("+").join(servers) + ".z";
                 }
+                
                 return retVal;
             }
         }
@@ -183,7 +192,9 @@ public class RefreshableDirectory extends Directory {
                   synchronized (pendingRequests) {
                       pendingRequests.remove(currentRequest);
                   }
-                  currentRequest.result = this.getResponseContent();
+                  byte[] compressedBytes = this.getResponseContentBytes();
+                  byte[] decompressedBytes = decompress(compressedBytes);
+                  currentRequest.result = new String(decompressedBytes);
                   currentRequest.finished = true;
                   currentRequest.finish();
                 } else {
@@ -191,6 +202,12 @@ public class RefreshableDirectory extends Directory {
                 }
             }
             
+            private byte[] decompress(byte[] compressedBytes) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+
             protected void fail(Object cause) {
                 synchronized (currentRequest.servicingConnections) {
                     currentRequest.servicingConnections.remove(this);
@@ -294,7 +311,7 @@ public class RefreshableDirectory extends Directory {
             Set<String> pendingServers = getInvalidServers();
             for (DirectoryRequest req : pendingRequests) {
                 if (req.type == RequestType.Server) {
-                    pendingServers.remove(req.server.getFingerprint());
+                    pendingServers.removeAll(req.servers);
                 }
             }
 
@@ -307,8 +324,12 @@ public class RefreshableDirectory extends Directory {
                 } 
             }
             pendingServers.removeAll(invalidServers);
-            for (String s : pendingServers) {
-                pendingRequests.add(new DirectoryRequest(getServers().get(s)));
+            List<String> pendingServersList = new ArrayList<String>(pendingServers);
+            while (!pendingServersList.isEmpty()) {
+                int end = Math.min(pendingServersList.size(), 96);
+                List<String> subList = pendingServersList.subList(0, end); 
+                pendingRequests.add(new DirectoryRequest(new ArrayList<String>(subList)));
+                subList.clear();
             }
         }
 
