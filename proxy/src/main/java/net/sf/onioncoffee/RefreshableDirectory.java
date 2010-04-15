@@ -1,5 +1,6 @@
 package net.sf.onioncoffee;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,8 +13,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.zip.DataFormatException;
 
 import net.sf.onioncoffee.common.Cache;
+import net.sf.onioncoffee.common.Encoding;
 import net.sf.onioncoffee.common.SimpleFileCache;
 
 import org.apache.commons.collections15.CollectionUtils;
@@ -22,7 +25,9 @@ import org.eclipse.jetty.client.ContentExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.io.Files;
 
 public class RefreshableDirectory extends Directory {
     private static final int MAX_CONCURRENT_REQUESTS = 20;
@@ -45,7 +50,7 @@ public class RefreshableDirectory extends Directory {
         }
         return buffer.toString();
     }
-    
+
     public static String getServerKey(Server server) {
         return getServerKey(server.getKey());
     }
@@ -62,23 +67,23 @@ public class RefreshableDirectory extends Directory {
         Exception, Timeout, BadResponse
     }
 
-
-
     public RefreshableDirectory(ExecutorService executor) {
         String consensus = dataCache.getCachedItem(CONSENSUS_KEY);
         if (consensus != null && Directory.consensusFresh(consensus)) {
             parseConsensus(consensus);
-        } 
+        }
 
         client.setConnectorType(HttpClient.CONNECTOR_SELECT_CHANNEL);
-        client.setMaxConnectionsPerAddress(200); // max 200 concurrent connections to every address
+        client.setMaxConnectionsPerAddress(200); // max 200 concurrent
+                                                 // connections to every address
         client.setThreadPool(new QueuedThreadPool(2)); // max 250 threads
-        client.setTimeout(30000); // 30 seconds timeout; if no server reply, the request expires
+        client.setTimeout(30000); // 30 seconds timeout; if no server reply, the
+                                  // request expires
         try {
             client.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }    
+        }
         this.executor = executor;
         this.executor.submit(new RefreshThread());
     }
@@ -125,17 +130,18 @@ public class RefreshableDirectory extends Directory {
 
             public void finish() throws IOException {
                 if (type == RequestType.Consensus) {
-                    String result = null;
                     dataCache.cacheItem(CONSENSUS_KEY, result);
                     parseConsensus(result);
                 } else {
-//                    dataCache.cacheItem(getServerKey(server), result);
-//                    if (!parseServer(server, result)) {
-//                        invalidServers.add(server.getFingerprint());
-//                    }
+                    Files.write(result, new File("foo.txt"), Charsets.UTF_8);
+                    System.out.println();
+                    // dataCache.cacheItem(getServerKey(server), result);
+                    // if (!parseServer(server, result)) {
+                    // invalidServers.add(server.getFingerprint());
+                    // }
                 }
             }
-            
+
             public DirectoryRequest() {
                 this.servers = null;
                 this.type = RequestType.Consensus;
@@ -152,17 +158,15 @@ public class RefreshableDirectory extends Directory {
                 } else if (type == RequestType.Server) {
                     retVal = "/tor/server/fp/" + Joiner.on("+").join(servers) + ".z";
                 }
-                
+
                 return retVal;
             }
         }
-
 
         private class DirectoryConnection extends ContentExchange {
             public final Server server;
             public DirectoryRequest currentRequest;
             public final long initTime = System.currentTimeMillis();
-            
 
             public DirectoryConnection(Server targetServer, DirectoryRequest request) throws IOException {
                 this.server = targetServer;
@@ -175,38 +179,40 @@ public class RefreshableDirectory extends Directory {
                 client.send(this);
             }
 
-
             public long age() {
                 return System.currentTimeMillis() - initTime;
             }
-            
-            protected void onResponseComplete() throws IOException
-            {
+
+            protected void onResponseComplete() throws IOException {
                 int status = getResponseStatus();
                 if (status == 200) {
-                  dirConns.remove(this);
-                  goodServers.add(server.fingerprint);
-                  if (currentRequest.finished) {
-                      return;
-                  }
-                  synchronized (pendingRequests) {
-                      pendingRequests.remove(currentRequest);
-                  }
-                  byte[] compressedBytes = this.getResponseContentBytes();
-                  byte[] decompressedBytes = decompress(compressedBytes);
-                  currentRequest.result = new String(decompressedBytes);
-                  currentRequest.finished = true;
-                  currentRequest.finish();
+                    dirConns.remove(this);
+                    goodServers.add(server.fingerprint);
+                    if (currentRequest.finished) {
+                        return;
+                    }
+                    synchronized (pendingRequests) {
+                        pendingRequests.remove(currentRequest);
+                    }
+                    byte[] compressedBytes = this.getResponseContentBytes();
+                    byte[] decompressedBytes;
+                    try {
+                        decompressedBytes = Encoding.inflate(compressedBytes);
+                    } catch (DataFormatException e) {
+                        throw new IOException("Cannot parse response");
+                    }
+                    currentRequest.result = new String(decompressedBytes);
+                    currentRequest.finished = true;
+                    currentRequest.finish();
                 } else {
                     fail(status);
                 }
             }
-            
+
             private byte[] decompress(byte[] compressedBytes) {
                 // TODO Auto-generated method stub
                 return null;
             }
-
 
             protected void fail(Object cause) {
                 synchronized (currentRequest.servicingConnections) {
@@ -216,7 +222,7 @@ public class RefreshableDirectory extends Directory {
                 ++currentRequest.tries;
                 serverFaults.put(server.getFingerprint(), new ServerFault(ServerFaultType.BadResponse, this, cause));
             }
-            
+
             protected void onConnectionFailed(Throwable x) {
                 super.onConnectionFailed(x);
                 fail(x);
@@ -232,22 +238,22 @@ public class RefreshableDirectory extends Directory {
                 fail("timeout");
             }
         }
-        
+
         private Server findConnectableServer() {
             Server retVal = null;
             Set<String> currentConns = new HashSet<String>();
             for (DirectoryConnection dirConn : dirConns) {
                 currentConns.add(dirConn.server.fingerprint);
             }
-            
+
             List<String> goodConns = new ArrayList<String>(goodServers);
             goodConns.removeAll(currentConns);
             // use a previously reliable connection
             if (!goodConns.isEmpty()) {
                 String selectedFingerprint = goodConns.get(new Random().nextInt(goodConns.size()));
                 retVal = getServers().get(selectedFingerprint);
-            } 
-            
+            }
+
             if (retVal == null) {
                 Map<String, Server> serverMap = getValidServerMap();
                 CollectionUtils.filter(serverMap.values(), new Server.RunningPredicate());
@@ -266,7 +272,7 @@ public class RefreshableDirectory extends Directory {
                     retVal = new ArrayList<Server>(Config.trustedServers.values()).get(new Random().nextInt(Config.trustedServers.keySet().size()));
                 }
             }
-            
+
             return retVal;
         }
 
@@ -306,7 +312,7 @@ public class RefreshableDirectory extends Directory {
                 }
             }
         }
-        
+
         private void refreshServers() {
             Set<String> pendingServers = getInvalidServers();
             for (DirectoryRequest req : pendingRequests) {
@@ -315,19 +321,19 @@ public class RefreshableDirectory extends Directory {
                 }
             }
 
-            for (Iterator<String> itr = pendingServers.iterator(); itr.hasNext(); ) {
+            for (Iterator<String> itr = pendingServers.iterator(); itr.hasNext();) {
                 String s = itr.next();
                 Server server = getServers().get(s);
                 String descriptor = dataCache.getCachedItem(getServerKey(server));
                 if (descriptor != null && parseServer(server, descriptor)) {
                     itr.remove();
-                } 
+                }
             }
             pendingServers.removeAll(invalidServers);
             List<String> pendingServersList = new ArrayList<String>(pendingServers);
             while (!pendingServersList.isEmpty()) {
                 int end = Math.min(pendingServersList.size(), 96);
-                List<String> subList = pendingServersList.subList(0, end); 
+                List<String> subList = pendingServersList.subList(0, end);
                 pendingRequests.add(new DirectoryRequest(new ArrayList<String>(subList)));
                 subList.clear();
             }
@@ -344,7 +350,8 @@ public class RefreshableDirectory extends Directory {
                     cleanExceptionMap();
                     Thread.sleep(100);
                 } catch (Exception e) {
-//                    LogFactory.getLog(RefreshThread.class).error("Failure", e);
+                    // LogFactory.getLog(RefreshThread.class).error("Failure",
+                    // e);
                 }
             }
         }

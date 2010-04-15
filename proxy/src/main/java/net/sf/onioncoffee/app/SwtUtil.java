@@ -72,6 +72,7 @@ public class SwtUtil {
         int y = (displayRect.height - splashRect.height) / 2;
         splash.setLocation(x, y);
         splash.open();
+        splash.setVisible(false);
         callback.setBar(bar);
         callback.setLabel(status);
         display.asyncExec(callback);

@@ -17,12 +17,15 @@
  */
 package net.sf.onioncoffee.common;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Base64;
@@ -51,6 +54,25 @@ public class Encoding {
             "dc", "dd", "de", "df", "e0", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "ea", "eb", "ec", "ed", "ee", "ef", "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
             "f8", "f9", "fa", "fb", "fc", "fd", "fe", "ff" };
 
+    public static byte[] inflate(byte[] compressed) throws DataFormatException {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int bufferBytes = 0;
+        int inIndex = 0;
+        int remaining = compressed.length;
+        while (remaining > 0) {
+            Inflater inflate = new Inflater();
+            inflate.setInput(compressed, inIndex, remaining);
+            while (!inflate.finished()) {
+                bufferBytes = inflate.inflate(buffer);
+                os.write(buffer, 0, bufferBytes);
+            }
+            inIndex += inflate.getTotalIn();
+            remaining -= inflate.getTotalIn();
+        }
+        return os.toByteArray();
+    }
+    
     /**
      * Converts a byte array to hex string
      */
