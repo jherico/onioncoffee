@@ -37,7 +37,8 @@ import org.slf4j.LoggerFactory;
  * @version unstable
  */
 public class Server  {
-    private static final String ROUTER_REGEX = "r (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\d+) (\\d+)\\s*\ns ([a-z0-9 ]+)?";
+    public static final String ROUTER_REGEX = "r (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\S+) (\\d+) (\\d+)\\s*\ns ([a-z0-9 ]+)?";
+    public final static String FINGERPRINT_REGEX = "^opt fingerprint (.*?)$";
     // FIXME ??? por que?
     private static final int MAX_EXITPOLICY_ITEMS = 300;
     private static final int HIGH_BANDWIDTH = 2097152; // see updateServerRanking()
@@ -113,6 +114,10 @@ public class Server  {
 
     private int circuitCount = 0;
 
+    public static String parseDescriptorFingerprint(String descriptor) {
+        String fingerprint = Encoding.toHexStringNoColon(Encoding.parseHex(RegexUtil.parseStringByRE(descriptor, "^opt fingerprint (.*?)$", "")));
+        return fingerprint.toLowerCase().replaceAll("\\s", "");
+    }
     
     public static class ConsensusComparator implements Comparator<Server> {
         public int compare(Server o1, Server o2) {
@@ -343,8 +348,7 @@ public class Server  {
             return false;
         }
 
-        String fingerprint = Encoding.toHexStringNoColon(Encoding.parseHex(RegexUtil.parseStringByRE(descriptor, "^opt fingerprint (.*?)$", "")));
-        fingerprint = fingerprint.toLowerCase().replaceAll("\\s", "");
+        String fingerprint = parseDescriptorFingerprint(descriptor);
         if (!fingerprint.equals(getFingerprint())) {
             throw new RuntimeException("Fingerprint match failure");
         }

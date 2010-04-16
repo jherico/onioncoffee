@@ -1,6 +1,5 @@
 package net.sf.onioncoffee;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,10 +12,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 
 import net.sf.onioncoffee.common.Cache;
 import net.sf.onioncoffee.common.Encoding;
+import net.sf.onioncoffee.common.RegexUtil;
 import net.sf.onioncoffee.common.SimpleFileCache;
 
 import org.apache.commons.collections15.CollectionUtils;
@@ -25,16 +27,15 @@ import org.eclipse.jetty.client.ContentExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
-import com.google.common.io.Files;
 
 public class RefreshableDirectory extends Directory {
-    private static final int MAX_CONCURRENT_REQUESTS = 20;
+    private static final int MAX_CONCURRENT_REQUESTS = 3;
     private static final long MAX_SERVER_LOCKOUT_TIME = 10 * 60 * 1000;
     private static final int MAX_REQUEST_TRIES = 10;
     private static final String CONSENSUS_KEY = "consensus";
     private static final String SERVER_KEY_PREFIX = "/servers";
+    private static final String ROUTER_DESRIPTOR_SPLITTER = "^(router.+?-----END SIGNATURE-----)$";
 
     private final ExecutorService executor;
     private final Cache<String, String> dataCache = new SimpleFileCache(Config.getConfigDirFile());
@@ -74,11 +75,14 @@ public class RefreshableDirectory extends Directory {
         }
 
         client.setConnectorType(HttpClient.CONNECTOR_SELECT_CHANNEL);
-        client.setMaxConnectionsPerAddress(200); // max 200 concurrent
-                                                 // connections to every address
-        client.setThreadPool(new QueuedThreadPool(2)); // max 250 threads
-        client.setTimeout(30000); // 30 seconds timeout; if no server reply, the
-                                  // request expires
+        client.setMaxConnectionsPerAddress(1);
+        QueuedThreadPool pool = new QueuedThreadPool(1);
+        pool.setMinThreads(1);
+        pool.setName("DirRequestSelectorThread");
+        pool.setDaemon(true);
+        client.setThreadPool(pool);
+        client.setTimeout(30000); 
+        
         try {
             client.start();
         } catch (Exception e) {
@@ -133,12 +137,18 @@ public class RefreshableDirectory extends Directory {
                     dataCache.cacheItem(CONSENSUS_KEY, result);
                     parseConsensus(result);
                 } else {
-                    Files.write(result, new File("foo.txt"), Charsets.UTF_8);
-                    System.out.println();
-                    // dataCache.cacheItem(getServerKey(server), result);
-                    // if (!parseServer(server, result)) {
-                    // invalidServers.add(server.getFingerprint());
-                    // }
+                    Pattern p = Pattern.compile(ROUTER_DESRIPTOR_SPLITTER, RegexUtil.REGEX_MULTILINE_FLAGS);
+                    Matcher m = p.matcher(result);
+                    while (m.find()) {
+                        String descriptor = m.group(1);
+                        String fingerprint = Server.parseDescriptorFingerprint(descriptor);
+                        Server server = getServers().get(fingerprint);
+                        if (!parseServer(server, descriptor)) {
+                            invalidServers.add(fingerprint);
+                        } else {
+                            dataCache.cacheItem(getServerKey(fingerprint), descriptor);
+                        }
+                    }
                 }
             }
 
@@ -184,6 +194,7 @@ public class RefreshableDirectory extends Directory {
             }
 
             protected void onResponseComplete() throws IOException {
+                Thread.currentThread().setName(this.getURI());
                 int status = getResponseStatus();
                 if (status == 200) {
                     dirConns.remove(this);
@@ -207,6 +218,8 @@ public class RefreshableDirectory extends Directory {
                 } else {
                     fail(status);
                 }
+                Thread.currentThread().setName("Idle");
+
             }
 
             private byte[] decompress(byte[] compressedBytes) {
@@ -238,6 +251,7 @@ public class RefreshableDirectory extends Directory {
                 fail("timeout");
             }
         }
+
 
         private Server findConnectableServer() {
             Server retVal = null;

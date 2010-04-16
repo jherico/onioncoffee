@@ -1,5 +1,7 @@
 package net.sf.onioncoffee.test;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,14 +34,14 @@ public class RegexTest {
     @Test
     public void testMultiServerRegex() throws IOException {
       String input = Resources.toString(Resources.getResource("examples/server/multi-server.txt"), Charsets.UTF_8);
-      Pattern p = Pattern.compile("(?s)^(router.+?-----END SIGNATURE-----)$", REGEX_MULTILINE_FLAGS);
+      Pattern p = Pattern.compile("^(router.+?-----END SIGNATURE-----)$", REGEX_MULTILINE_FLAGS);
       Matcher m = p.matcher(input);
       int i = 0; 
       while (m.find()) {
           String descriptor = m.group(1);
           ++i;
       }
-      System.out.println(i);
+      assertEquals(96, i);
         
     }
 }
